@@ -47,19 +47,38 @@ describe("installPonyfill", () => {
 });
 
 describe("registerTool validation", () => {
-  it("rejects an empty name", async () => {
-    await expect(mc.registerTool(validTool({ name: "" }))).rejects.toThrow(
-      TypeError,
-    );
+  it("rejects an empty name with an InvalidStateError DOMException", async () => {
+    await expect(
+      mc.registerTool(validTool({ name: "" })),
+    ).rejects.toMatchObject({ name: "InvalidStateError" });
     await expect(
       mc.registerTool(validTool({ name: 5 as never })),
     ).rejects.toThrow(/name must be a non-empty string/);
   });
 
-  it("rejects an empty description", async () => {
+  it("rejects names outside [A-Za-z0-9_.-]{1,128} with InvalidStateError", async () => {
+    for (const bad of ["has space", "x".repeat(129), "emoji🎈"]) {
+      const promise = mc.registerTool(validTool({ name: bad }));
+      await expect(promise).rejects.toBeInstanceOf(DOMException);
+      await expect(
+        mc.registerTool(validTool({ name: bad })),
+      ).rejects.toMatchObject({ name: "InvalidStateError" });
+    }
+    // Boundary: exactly 128 valid characters is accepted.
+    await expect(
+      mc.registerTool(validTool({ name: "n".repeat(128) })),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects an empty description with an InvalidStateError DOMException", async () => {
+    const promise = mc.registerTool(validTool({ description: "" }));
+    await expect(promise).rejects.toBeInstanceOf(DOMException);
     await expect(
       mc.registerTool(validTool({ description: "" })),
-    ).rejects.toThrow(/description must be a non-empty string/);
+    ).rejects.toMatchObject({
+      name: "InvalidStateError",
+      message: expect.stringMatching(/description must be a non-empty string/),
+    });
   });
 
   it("rejects a non-function execute", async () => {
@@ -100,7 +119,11 @@ describe("toolchange events", () => {
     mc.ontoolchange = onProp;
 
     const ac = new AbortController();
-    await mc.registerTool(validTool(), { signal: ac.signal });
+    const registration = mc.registerTool(validTool(), { signal: ac.signal });
+    // toolchange is dispatched from a queued task, never synchronously.
+    expect(listener).not.toHaveBeenCalled();
+    await registration;
+    await Promise.resolve();
     expect(listener).toHaveBeenCalledTimes(1);
     // happy-dom auto-invokes `on*` properties from dispatchEvent (real
     // browsers do not for plain EventTarget subclasses), so the explicit
@@ -111,6 +134,8 @@ describe("toolchange events", () => {
     expect(mc.getTools()).toHaveLength(1);
 
     ac.abort();
+    expect(listener).toHaveBeenCalledTimes(1); // still queued
+    await Promise.resolve();
     expect(listener).toHaveBeenCalledTimes(2);
     expect(onProp.mock.calls.length).toBeGreaterThan(callsAfterRegister);
     expect(mc.getTools()).toHaveLength(0);
@@ -124,8 +149,85 @@ describe("toolchange events", () => {
     await expect(
       mc.registerTool(validTool(), { signal: ac.signal }),
     ).resolves.toBeUndefined();
+    await Promise.resolve();
     expect(mc.getTools()).toHaveLength(0);
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe("exposedTo", () => {
+  const OWN_ORIGIN = window.location.origin;
+
+  it("rejects entries that are not serialized origins with SecurityError", async () => {
+    for (const bad of [
+      "not a url",
+      "https://agent.example/path", // not origin-serialized
+      "agent.example",
+    ]) {
+      await expect(
+        mc.registerTool(validTool(), { exposedTo: [bad] }),
+      ).rejects.toMatchObject({ name: "SecurityError" });
+    }
+  });
+
+  it("rejects non-trustworthy origins (plain http) with SecurityError", async () => {
+    await expect(
+      mc.registerTool(validTool(), { exposedTo: ["http://agent.example"] }),
+    ).rejects.toMatchObject({ name: "SecurityError" });
+    // http on loopback is potentially trustworthy.
+    await expect(
+      mc.registerTool(validTool({ name: "local" }), {
+        exposedTo: ["http://localhost", "http://127.0.0.1"],
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("tools without exposedTo are visible to any caller origin", async () => {
+    await mc.registerTool(validTool({ name: "open" }));
+    expect(
+      mc.getTools({ origin: "https://anyone.example" }).map((t) => t.name),
+    ).toEqual(["open"]);
+  });
+
+  it("tools with exposedTo are only visible to listed or same-origin callers", async () => {
+    await mc.registerTool(validTool({ name: "scoped" }), {
+      exposedTo: ["https://agent.example"],
+    });
+
+    // No origin → same-origin caller (in-page dev panel) sees everything.
+    expect(mc.getTools().map((t) => t.name)).toEqual(["scoped"]);
+    // The document's own origin also sees it.
+    expect(mc.getTools({ origin: OWN_ORIGIN }).map((t) => t.name)).toEqual([
+      "scoped",
+    ]);
+    // A listed origin sees it.
+    expect(
+      mc.getTools({ origin: "https://agent.example" }).map((t) => t.name),
+    ).toEqual(["scoped"]);
+    // Anyone else does not.
+    expect(mc.getTools({ origin: "https://other.example" })).toEqual([]);
+  });
+
+  it("executeTool hides non-visible tools behind NotFoundError", async () => {
+    const execute = vi.fn(() => "ran");
+    await mc.registerTool(validTool({ name: "scoped", execute }), {
+      exposedTo: ["https://agent.example"],
+    });
+
+    await expect(
+      mc.executeTool("scoped", {}, undefined, {
+        origin: "https://other.example",
+      }),
+    ).rejects.toMatchObject({ name: "NotFoundError" });
+    expect(execute).not.toHaveBeenCalled();
+
+    await expect(
+      mc.executeTool("scoped", {}, undefined, {
+        origin: "https://agent.example",
+      }),
+    ).resolves.toBe("ran");
+    // Back-compat: no opts means same-origin caller.
+    await expect(mc.executeTool("scoped", {})).resolves.toBe("ran");
   });
 });
 

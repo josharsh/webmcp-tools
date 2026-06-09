@@ -1,15 +1,13 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
+  ErrorCode,
   ListToolsRequestSchema,
+  McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import {
-  getRegisteredTool,
-  getRegisteredTools,
-  onRegistryChange,
-} from "webmcp-kit";
+import { getRegisteredTools, onRegistryChange } from "webmcp-kit";
 import type { RegisteredTool } from "webmcp-kit";
 
 export interface CreateWebMCPServerOptions {
@@ -30,10 +28,18 @@ export interface WebMCPBridgeServer {
 
 function toMcpTool(registered: RegisteredTool): Tool {
   const { descriptor } = registered;
-  const inputSchema = (descriptor.inputSchema ?? {
-    type: "object",
+  // MCP `Tool.inputSchema` REQUIRES type: "object". Normalize descriptors
+  // that are missing a schema or use a different type so one bad tool can
+  // never break tools/list.
+  const original = descriptor.inputSchema;
+  const inputSchema = {
     properties: {},
-  }) as Tool["inputSchema"];
+    ...(original ?? {}),
+    type: "object",
+  } as Tool["inputSchema"];
+  // The SDK's annotations schema strips `untrustedContentHint` (it's a WebMCP
+  // extension); preserve it in `_meta`, which the SDK passes through.
+  const untrusted = descriptor.annotations?.untrustedContentHint;
   return {
     name: descriptor.name,
     description: descriptor.description,
@@ -42,14 +48,22 @@ function toMcpTool(registered: RegisteredTool): Tool {
     ...(descriptor.annotations !== undefined && {
       annotations: descriptor.annotations,
     }),
+    ...(untrusted !== undefined && {
+      _meta: { "webmcp/untrustedContentHint": untrusted },
+    }),
   };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
  * Create an MCP server backed by the webmcp-kit registry.
  *
- * `tools/list` reflects `getRegisteredTools()`, `tools/call` runs the tool's
- * full pipeline (validation, confirm gate, normalization) via
+ * `tools/list` reflects `getRegisteredTools()` (filtered by each tool's
+ * `exposedTo` against the transport's bound peer origin), `tools/call` runs
+ * the tool's full pipeline (validation, confirm gate, normalization) via
  * `RegisteredTool.execute`, and registry changes are forwarded as
  * `notifications/tools/list_changed`.
  */
@@ -66,34 +80,43 @@ export function createWebMCPServer(
     },
   );
 
+  // Set on connect when the transport exposes a `peerOrigin` getter (e.g.
+  // PostMessageServerTransport). Read lazily — the peer binds on its first
+  // valid message, after connect() returns.
+  let readPeerOrigin: (() => string | undefined) | undefined;
+
+  function visibleTools(): RegisteredTool[] {
+    const peerOrigin = readPeerOrigin?.();
+    return getRegisteredTools().filter(
+      (t) =>
+        t.exposedTo === undefined ||
+        (peerOrigin !== undefined && t.exposedTo.includes(peerOrigin)),
+    );
+  }
+
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: getRegisteredTools().map(toMcpTool),
+    tools: visibleTools().map(toMcpTool),
   }));
 
   server.setRequestHandler(
     CallToolRequestSchema,
     async (request): Promise<CallToolResult> => {
-      const tool = getRegisteredTool(request.params.name);
+      const tool = visibleTools().find((t) => t.name === request.params.name);
+      // Tools hidden from this peer are indistinguishable from unknown ones.
       if (!tool) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Unknown tool "${request.params.name}".`,
-            },
-          ],
-          isError: true,
-        };
+        throw new McpError(
+          ErrorCode.InvalidParams,
+          `Unknown tool: ${request.params.name}`,
+        );
       }
       const result = await tool.execute(request.params.arguments ?? {});
       return {
         content: result.content,
         ...(result.isError !== undefined && { isError: result.isError }),
-        ...(result.structuredContent !== undefined && {
-          structuredContent: result.structuredContent as Record<
-            string,
-            unknown
-          >,
+        // structuredContent must be a plain object per MCP; the text block
+        // already carries the JSON for anything else.
+        ...(isPlainObject(result.structuredContent) && {
+          structuredContent: result.structuredContent,
         }),
       };
     },
@@ -112,12 +135,19 @@ export function createWebMCPServer(
   return {
     server,
     async connect(transport: Transport): Promise<void> {
+      if ("peerOrigin" in transport) {
+        const t = transport as Transport & { peerOrigin: string | undefined };
+        readPeerOrigin = () => t.peerOrigin;
+      } else {
+        readPeerOrigin = undefined;
+      }
       await server.connect(transport);
       connected = true;
     },
     async close(): Promise<void> {
       unsubscribe();
       connected = false;
+      readPeerOrigin = undefined;
       await server.close();
     },
   };

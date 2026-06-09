@@ -8,11 +8,14 @@
  * import "webmcp-kit/zod";
  * ```
  *
- * Requires Zod v4 (`z.toJSONSchema`). Zod 3.24+ schemas still validate at
- * runtime via Standard Schema without this adapter — only descriptor
- * generation needs it (or pass `inputJsonSchema` explicitly).
+ * Requires the Zod v4 API, imported via the `zod/v4` subpath — available in
+ * both Zod 3.25+ (where v4 ships alongside v3) and Zod 4. Zod 3.24+ schemas
+ * still validate at runtime via Standard Schema without this adapter — only
+ * descriptor generation needs it (or pass `inputJsonSchema` explicitly).
+ * Note: schemas you pass to `tool()` must be built with the v4 API
+ * (`import { z } from "zod/v4"` on Zod 3.25.x, or plain `"zod"` on Zod 4).
  */
-import { toJSONSchema } from "zod";
+import { toJSONSchema } from "zod/v4";
 import { registerSchemaConverter } from "./schema.js";
 import type { JsonSchema, StandardSchemaV1 } from "./types.js";
 

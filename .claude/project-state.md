@@ -16,21 +16,48 @@ Spec reference clone: /tmp/webmcp-spec (webmachinelearning/webmcp).
 - `packages/vue` → `@webmcp-kit/vue` — composables
 - `packages/svelte` → `@webmcp-kit/svelte` — action + store contract
 - `packages/mcp-bridge` → `@webmcp-kit/mcp-bridge` — MCP server over
-  postMessage transports (origin-validated)
+  postMessage transports (origin-validated, single-peer binding, exposedTo filtering)
 - `examples/todo` — Vite+React demo
 
 ## Status (2026-06-10)
 
-- Core: done, builds clean, committed (ccf29b5).
-- Adapters/bridge/tests/example: built by workflow wf_593cae0a-8c4
-  (implement → verify+fix → adversarial review). Awaiting completion.
+All review findings (A–H) applied and the full gate is green:
+pnpm install / build / typecheck / vitest (163 tests, 0 skipped) /
+example build / attw (no problems, node10 green) / npm pack (README+LICENSE
+in tarball) / prettier check.
+
+Fixes applied this session (UNCOMMITTED — needs a commit):
+
+- Packaging: per-condition `types` in exports (.d.cts for CJS), typesVersions
+  for core subpaths, peerDeps `workspace:^`, LICENSE copied into all 5
+  packages, flagship `packages/core/README.md` written.
+- Core: zod adapter imports `zod/v4` (peer range ^3.25 || ^4 now honest);
+  tsup external `/^zod($|\/)/`; tool name regex `[A-Za-z0-9_.-]{1,128}`;
+  pre-aborted signal returns inert handle (no registry/host zombie);
+  host-registration rejection unregisters the tool (ready still rejects);
+  `getConfig` exported; `RegisteredTool.exposedTo` surfaced.
+- Ponyfill: empty/invalid name + empty description → InvalidStateError;
+  exposedTo validated (trustworthy serialized origins, else SecurityError)
+  and enforced in getTools/executeTool via `{ origin }` opts (NotFoundError,
+  no existence leak); toolchange dispatched via queueMicrotask.
+- Bridge: inputSchema normalized to type:"object"; structuredContent only
+  for plain objects; unknown tool → McpError InvalidParams (callTool rejects);
+  untrustedContentHint preserved in `_meta["webmcp/untrustedContentHint"]`;
+  transport binds one peer only after a parsed JSON-RPC message, exposes
+  `peerOrigin`, server filters tools/list+call by exposedTo vs peerOrigin.
+- Forms: autosubmit only with `toolautosubmit` attr or `autoSubmit: true`
+  (else fill + focus submit + "awaiting user review" message);
+  `toolparamdescription` (spec) with `tooldescription` fallback on fields;
+  autoRegisterForms observes attribute changes and re-registers (rename/
+  remove/add toolname). NOTE: handles tracked via expando on the form
+  element — happy-dom returns distinct wrappers for the same element across
+  querySelectorAll/mutation targets, so element-keyed Maps break there.
+- Docs: root README + bridge README synced; core README created.
 
 ## Next
 
-1. Apply review findings from workflow.
-2. Final green run: pnpm build/typecheck/vitest + example build.
-3. Commit, npm pack dry-run for publishability.
-4. Publish decision is Harsh's (npm org name, GitHub repo creation).
+1. Commit everything (big batch sitting in working tree).
+2. Publish decision is Harsh's (npm org name, GitHub repo creation).
 
 ## Notes
 
@@ -39,4 +66,7 @@ Spec reference clone: /tmp/webmcp-spec (webmachinelearning/webmcp).
   inputSchema,execute,annotations{readOnlyHint,untrustedContentHint}};
   options {signal, exposedTo}; toolchange event; native input validation
   NOT in spec (issue #92) — that's the kit's value-add.
-- getTools()/executeTool() are spec-TODO; ponyfill implements provisional shape.
+- getTools()/executeTool() are spec-TODO; ponyfill implements provisional
+  shape, now with `{ origin }` caller-context opts for exposedTo.
+- mcp-bridge tests run against core's BUILT dist (workspace dep) — rebuild
+  core before trusting bridge test results after core changes.

@@ -89,6 +89,9 @@ export function errorResult(message: string): ToolResult {
 // tool() — the main API
 // ---------------------------------------------------------------------------
 
+/** Spec constraint: 1–128 chars from [A-Za-z0-9_.-]. */
+const TOOL_NAME_RE = /^[A-Za-z0-9_.-]{1,128}$/;
+
 /**
  * Register a typed, validated WebMCP tool on `document.modelContext`.
  *
@@ -113,7 +116,12 @@ export function tool<I extends ToolInput | undefined = undefined>(
   name: string,
   definition: ToolDefinition<I>,
 ): RegisteredTool {
-  if (!name) throw new Error("webmcp-kit: tool name must be non-empty");
+  if (!TOOL_NAME_RE.test(name)) {
+    throw new Error(
+      `webmcp-kit: invalid tool name ${JSON.stringify(name)} — names must ` +
+        "be 1-128 characters from [A-Za-z0-9_.-] per the WebMCP spec.",
+    );
+  }
   if (!definition.description) {
     throw new Error(`webmcp-kit: tool "${name}" needs a description`);
   }
@@ -241,6 +249,26 @@ export function tool<I extends ToolInput | undefined = undefined>(
     }),
   };
 
+  // A pre-aborted signal means "never register": return an inert handle
+  // without touching the kit registry or the host (the abort listener that
+  // would normally unregister can never fire for an already-aborted signal).
+  if (controller.signal.aborted) {
+    unregistered = true;
+    return {
+      name,
+      descriptor,
+      ...(definition.exposedTo && { exposedTo: definition.exposedTo }),
+      ready: Promise.resolve(),
+      execute,
+      get unregistered() {
+        return unregistered;
+      },
+      unregister() {
+        // Already unregistered; nothing to do.
+      },
+    };
+  }
+
   // Register with the host (native document.modelContext or ponyfill).
   const host = getModelContext(config.missingHost);
   const ready: Promise<void> = host
@@ -256,6 +284,7 @@ export function tool<I extends ToolInput | undefined = undefined>(
   const handle: RegisteredTool = {
     name,
     descriptor,
+    ...(definition.exposedTo && { exposedTo: definition.exposedTo }),
     ready,
     execute,
     get unregistered() {
@@ -274,5 +303,18 @@ export function tool<I extends ToolInput | undefined = undefined>(
   });
 
   registryAdd(handle);
+
+  // If the host rejects a registration the kit allowed (e.g. a native browser
+  // is stricter), drop the tool from the kit registry instead of leaving a
+  // zombie. `handle.ready` stays the original promise so callers who await it
+  // still observe the rejection.
+  ready.catch((err) => {
+    handle.unregister();
+    console.error(
+      `webmcp-kit: host registration for tool "${name}" failed`,
+      err,
+    );
+  });
+
   return handle;
 }

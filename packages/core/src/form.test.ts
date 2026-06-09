@@ -81,9 +81,9 @@ describe("formTool schema synthesis", () => {
     expect(schema.required).toEqual(["title", "size"]);
   });
 
-  it("uses tooldescription attributes on fields as property descriptions", () => {
+  it("uses toolparamdescription attributes on fields as property descriptions", () => {
     const form = makeForm(
-      `<input name="city" tooldescription="Destination city">`,
+      `<input name="city" toolparamdescription="Destination city">`,
       { toolname: "search", tooldescription: "Search trips" },
     );
     const t = formTool(form);
@@ -94,6 +94,22 @@ describe("formTool schema synthesis", () => {
       type: "string",
       description: "Destination city",
     });
+  });
+
+  it("falls back to tooldescription on fields (back-compat), spec attribute wins", () => {
+    const form = makeForm(
+      `
+      <input name="legacy" tooldescription="Legacy description">
+      <input name="both" toolparamdescription="Spec wins" tooldescription="Legacy loses">
+      `,
+      { toolname: "compat", tooldescription: "d" },
+    );
+    const t = formTool(form);
+    const schema = t.descriptor.inputSchema as {
+      properties: Record<string, Record<string, unknown>>;
+    };
+    expect(schema.properties.legacy!.description).toBe("Legacy description");
+    expect(schema.properties.both!.description).toBe("Spec wins");
   });
 
   it("throws when the form has no toolname and no options.name", () => {
@@ -118,7 +134,7 @@ describe("formTool schema synthesis", () => {
 });
 
 describe("formTool execution", () => {
-  it("fills fields, dispatches input+change, and calls requestSubmit", async () => {
+  it("fills fields, dispatches input+change, and calls requestSubmit (toolautosubmit)", async () => {
     const form = makeForm(
       `
       <input name="title" required>
@@ -128,7 +144,11 @@ describe("formTool execution", () => {
         <option value="m">M</option>
       </select>
       `,
-      { toolname: "fill", tooldescription: "Fill the form" },
+      {
+        toolname: "fill",
+        tooldescription: "Fill the form",
+        toolautosubmit: "",
+      },
     );
     // happy-dom's requestSubmit would actually submit; spy it out either way.
     const requestSubmit = vi.fn();
@@ -156,6 +176,56 @@ describe("formTool execution", () => {
     // input + change bubbled for each of the 3 filled fields
     expect(inputEvents).toHaveBeenCalledTimes(3);
     expect(changeEvents).toHaveBeenCalledTimes(3);
+  });
+
+  it("without toolautosubmit: fills, focuses the submit control, does NOT submit", async () => {
+    const form = makeForm(
+      `<input name="title"><button type="submit">Go</button>`,
+      { toolname: "review-me", tooldescription: "d" },
+    );
+    const requestSubmit = vi.fn();
+    (form as { requestSubmit: () => void }).requestSubmit = requestSubmit;
+    const submitButton = form.querySelector("button")!;
+    const focus = vi.fn();
+    (submitButton as { focus: () => void }).focus = focus;
+
+    const t = formTool(form);
+    const result = await t.execute({ title: "Hat" });
+
+    expect(requestSubmit).not.toHaveBeenCalled();
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect((form.elements.namedItem("title") as HTMLInputElement).value).toBe(
+      "Hat",
+    );
+    expect(result.content[0]!.text).toBe(
+      'Filled form "review-me". Awaiting user review — the user must ' +
+        "submit manually.",
+    );
+  });
+
+  it("options.autoSubmit: true submits without the attribute; false wins over it", async () => {
+    const noAttr = makeForm(`<input name="a">`, {
+      toolname: "opt-submit",
+      tooldescription: "d",
+    });
+    const submitNoAttr = vi.fn();
+    (noAttr as { requestSubmit: () => void }).requestSubmit = submitNoAttr;
+    const t1 = formTool(noAttr, { autoSubmit: true });
+    const r1 = await t1.execute({ a: "x" });
+    expect(submitNoAttr).toHaveBeenCalledTimes(1);
+    expect(r1.content[0]!.text).toBe('Submitted form "opt-submit".');
+
+    const withAttr = makeForm(`<input name="a">`, {
+      toolname: "opt-no-submit",
+      tooldescription: "d",
+      toolautosubmit: "",
+    });
+    const submitWithAttr = vi.fn();
+    (withAttr as { requestSubmit: () => void }).requestSubmit = submitWithAttr;
+    const t2 = formTool(withAttr, { autoSubmit: false });
+    const r2 = await t2.execute({ a: "x" });
+    expect(submitWithAttr).not.toHaveBeenCalled();
+    expect(r2.content[0]!.text).toMatch(/Awaiting user review/);
   });
 
   it("rejects input that violates the synthesized schema", async () => {
@@ -297,6 +367,62 @@ describe("autoRegisterForms", () => {
     wrapper.remove();
     await waitFor(() => getRegisteredTool("wrapped-removable") === undefined);
     expect(getRegisteredTool("wrapped-removable")).toBeUndefined();
+    cleanup();
+  });
+
+  it("re-registers a form when its toolname attribute changes", async () => {
+    const form = makeForm(`<input name="a">`, {
+      toolname: "old-name",
+      tooldescription: "d",
+    });
+    const cleanup = autoRegisterForms();
+    expect(getRegisteredTool("old-name")).toBeDefined();
+
+    form.setAttribute("toolname", "new-name");
+    await waitFor(() => getRegisteredTool("new-name") !== undefined);
+    expect(getRegisteredTool("old-name")).toBeUndefined();
+    expect(getRegisteredTool("new-name")).toBeDefined();
+    cleanup();
+  });
+
+  it("re-registers with a fresh description when tooldescription changes", async () => {
+    const form = makeForm(`<input name="a">`, {
+      toolname: "redesc",
+      tooldescription: "before",
+    });
+    const cleanup = autoRegisterForms();
+    expect(getRegisteredTool("redesc")!.descriptor.description).toBe("before");
+
+    form.setAttribute("tooldescription", "after");
+    await waitFor(
+      () => getRegisteredTool("redesc")?.descriptor.description === "after",
+    );
+    expect(getRegisteredTool("redesc")!.descriptor.description).toBe("after");
+    cleanup();
+  });
+
+  it("removing toolname unregisters the form's tool", async () => {
+    const form = makeForm(`<input name="a">`, {
+      toolname: "to-remove",
+      tooldescription: "d",
+    });
+    const cleanup = autoRegisterForms();
+    expect(getRegisteredTool("to-remove")).toBeDefined();
+
+    form.removeAttribute("toolname");
+    await waitFor(() => getRegisteredTool("to-remove") === undefined);
+    expect(getRegisteredTool("to-remove")).toBeUndefined();
+    cleanup();
+  });
+
+  it("adding toolname to an existing form registers it", async () => {
+    const form = makeForm(`<input name="a">`, { tooldescription: "d" });
+    const cleanup = autoRegisterForms();
+    expect(getRegisteredTools()).toHaveLength(0);
+
+    form.setAttribute("toolname", "late-attr");
+    await waitFor(() => getRegisteredTool("late-attr") !== undefined);
+    expect(getRegisteredTool("late-attr")).toBeDefined();
     cleanup();
   });
 

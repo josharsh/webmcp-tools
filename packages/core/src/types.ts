@@ -192,6 +192,11 @@ export interface RegisteredTool {
   name: string;
   /** The exact descriptor handed to `registerTool` (minus `execute`). */
   descriptor: Omit<ModelContextTool, "execute">;
+  /**
+   * Origins this tool is selectively exposed to (spec registration option).
+   * Undefined means the spec default: same-origin / built-in-agent only.
+   */
+  readonly exposedTo?: string[];
   /** Resolves when native registration completed (or ponyfill registration). */
   ready: Promise<void>;
   /** Unregister the tool (aborts the underlying registration signal). */

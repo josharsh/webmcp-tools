@@ -127,15 +127,90 @@ describe("createWebMCPServer over postMessage", () => {
     );
   });
 
-  it("returns an isError result for unknown tool names", async () => {
+  it("rejects unknown tool names with a JSON-RPC InvalidParams error", async () => {
     registerFixtureTools();
     const { client } = await connectPair();
 
-    const result = await client.callTool({ name: "no-such-tool" });
-    expect(result.isError).toBe(true);
-    expect((result.content as TextContent)[0]!.text).toContain(
-      'Unknown tool "no-such-tool"',
+    await expect(client.callTool({ name: "no-such-tool" })).rejects.toThrow(
+      /Unknown tool: no-such-tool/,
     );
+  });
+
+  it("normalizes a non-object inputSchema so tools/list never breaks", async () => {
+    tool("bad-schema", {
+      description: "Registered with a non-object schema type",
+      input: { type: "string" },
+      run: () => "ok",
+    });
+    registerFixtureTools();
+    const { client } = await connectPair();
+
+    const { tools } = await client.listTools();
+    const bad = tools.find((t) => t.name === "bad-schema")!;
+    expect(bad.inputSchema.type).toBe("object");
+    expect(tools).toHaveLength(3); // the bad tool didn't break the list
+  });
+
+  it("omits structuredContent for non-plain-object results (arrays)", async () => {
+    tool("list-things", {
+      description: "Returns an array",
+      run: () => [1, 2, 3],
+    });
+    const { client } = await connectPair();
+
+    const result = await client.callTool({ name: "list-things" });
+    expect(result.structuredContent).toBeUndefined();
+    expect((result.content as TextContent)[0]!.text).toBe("[1,2,3]");
+  });
+
+  it("preserves untrustedContentHint via _meta across listTools", async () => {
+    tool("ugc-echo", {
+      description: "Echoes user-generated content",
+      readOnly: true,
+      untrustedContent: true,
+      run: () => "ok",
+    });
+    const { client } = await connectPair();
+
+    const { tools } = await client.listTools();
+    const ugc = tools.find((t) => t.name === "ugc-echo")!;
+    expect(ugc._meta).toEqual({ "webmcp/untrustedContentHint": true });
+    // readOnlyHint survives in annotations (the SDK schema keeps it).
+    expect(ugc.annotations).toMatchObject({ readOnlyHint: true });
+  });
+
+  it("hides exposedTo tools from peers whose origin is not listed", async () => {
+    tool("scoped-tool", {
+      description: "Only for allowed.example",
+      exposedTo: ["https://allowed.example"],
+      run: () => "secret",
+    });
+    tool("open-tool", { description: "For everyone", run: () => "open" });
+    const { client } = await connectPair();
+
+    // The connected peer's origin is ORIGIN, not in the exposedTo list.
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).toEqual(["open-tool"]);
+
+    // Hidden tools are indistinguishable from unknown ones for tools/call.
+    await expect(client.callTool({ name: "scoped-tool" })).rejects.toThrow(
+      /Unknown tool: scoped-tool/,
+    );
+  });
+
+  it("serves exposedTo tools to peers whose origin is listed", async () => {
+    tool("scoped-tool", {
+      description: "Exposed to this test's origin",
+      exposedTo: [ORIGIN],
+      run: () => "visible",
+    });
+    const { client } = await connectPair();
+
+    const { tools } = await client.listTools();
+    expect(tools.map((t) => t.name)).toEqual(["scoped-tool"]);
+
+    const result = await client.callTool({ name: "scoped-tool" });
+    expect((result.content as TextContent)[0]!.text).toBe("visible");
   });
 
   it("sends list_changed on unregister and drops the tool from tools/list", async () => {
@@ -154,9 +229,10 @@ describe("createWebMCPServer over postMessage", () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name)).toEqual(["echo-upper"]);
 
-    // Calling the unregistered tool now errors instead of executing.
-    const result = await client.callTool({ name: "get-cart" });
-    expect(result.isError).toBe(true);
+    // Calling the unregistered tool is now a JSON-RPC error.
+    await expect(client.callTool({ name: "get-cart" })).rejects.toThrow(
+      /Unknown tool: get-cart/,
+    );
   });
 
   it("sends list_changed when a tool is registered after connect", async () => {

@@ -1,4 +1,10 @@
-export { tool, configure, normalizeResult, errorResult } from "./tool.js";
+export {
+  tool,
+  configure,
+  getConfig,
+  normalizeResult,
+  errorResult,
+} from "./tool.js";
 export {
   isStandardSchema,
   registerSchemaConverter,
@@ -16,7 +22,7 @@ export { hasNativeWebMCP, hasWebMCP, getModelContext } from "./host.js";
 export { formTool, autoRegisterForms } from "./form.js";
 export type { FormToolOptions } from "./form.js";
 export { installPonyfill, isPonyfill } from "./ponyfill.js";
-export type { PonyfillModelContext } from "./ponyfill.js";
+export type { PonyfillAgentOptions, PonyfillModelContext } from "./ponyfill.js";
 export type {
   ConfirmHandler,
   ConfirmOption,

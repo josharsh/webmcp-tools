@@ -66,6 +66,10 @@ search.unregister(); // gone, everywhere
 
 No schema library? Pass raw JSON Schema as `input` instead — the kit still validates `type`/`required`/`properties` at the boundary.
 
+Tool names must be **1–128 characters from `[A-Za-z0-9_.-]`** (the spec constraint) — `tool()` throws on anything else.
+
+> **Zod note:** the `webmcp-kit/zod` adapter uses the **Zod v4 API** via the `zod/v4` subpath, which exists in Zod 3.25+ and Zod 4 — so the full `^3.25.0 || ^4.0.0` peer range works. On Zod 3.25.x, build schemas with `import { z } from "zod/v4"`.
+
 ### React
 
 ```tsx
@@ -97,18 +101,27 @@ Tools follow the component lifecycle: registered on mount, unregistered on unmou
 Annotate the forms you already have:
 
 ```html
-<form toolname="subscribe" tooldescription="Subscribe to the newsletter">
-  <input name="email" type="email" required tooldescription="Email address" />
+<form
+  toolname="subscribe"
+  tooldescription="Subscribe to the newsletter"
+  toolautosubmit
+>
+  <input
+    name="email"
+    type="email"
+    required
+    toolparamdescription="Email address"
+  />
   <button>Subscribe</button>
 </form>
 ```
 
 ```ts
 import { autoRegisterForms } from "webmcp-kit";
-autoRegisterForms(); // registers every form[toolname], watches for new ones
+autoRegisterForms(); // registers every form[toolname], watches DOM + attributes
 ```
 
-Field names and types become the input schema (`email` → `{ type: "string", format: "email" }`, required honored); executing the tool fills the fields (dispatching `input`/`change` so React/Vue controlled inputs notice) and submits the form. `formTool(form, { confirm, onSubmit })` gives per-form control.
+Field names and types become the input schema (`email` → `{ type: "string", format: "email" }`, required honored, `toolparamdescription` → property descriptions); executing the tool fills the fields (dispatching `input`/`change` so React/Vue controlled inputs notice). Per the explainer, the form is only **submitted automatically when it has `toolautosubmit`** (or `autoSubmit: true` is passed) — otherwise the submit control is focused and the user reviews and submits manually. `toolname`/`tooldescription`/`toolautosubmit` attribute changes re-register the tool live; removing `toolname` unregisters it. `formTool(form, { confirm, autoSubmit, onSubmit })` gives per-form control.
 
 ### MCP bridge (extension / iframe agents)
 
@@ -130,7 +143,7 @@ await bridge.connect(
 // later: bridge.close()
 ```
 
-An agent in an extension content script or embedding frame connects with an MCP client over the matching `postMessage` transport and gets `tools/list` + `tools/call` — with the kit's validation and confirm gates still enforced in the page. Tools registered or unregistered later are picked up live via `notifications/tools/list_changed`.
+An agent in an extension content script or embedding frame connects with an MCP client over the matching `postMessage` transport and gets `tools/list` + `tools/call` — with the kit's validation and confirm gates still enforced in the page. Tools registered or unregistered later are picked up live via `notifications/tools/list_changed`. Tools with `exposedTo` are only served when the connected peer's origin is in the list; calling an unknown (or hidden) tool is a JSON-RPC `InvalidParams` error, so SDK clients see `callTool` reject.
 
 ## Packages
 
@@ -161,7 +174,7 @@ Tools are an attack surface — an agent is an untrusted caller influenced by pa
 - **Confirm gates.** `confirm` puts the human back in the loop for destructive or high-stakes actions, the spec's recommended defense against prompt injection driving unwanted tool calls. The handler routes through the native `ModelContextClient` so the browser can pause the agent loop; the fallback is `window.confirm`, and in non-interactive contexts with no handler configured the default is **deny**.
 - **`untrustedContentHint`.** Set `untrustedContent: true` on tools whose results echo user-generated content, so agent harnesses can treat the output as data, not instructions (spec `ToolAnnotations`).
 - **Origin allowlists in the bridge.** `PostMessageServerTransport` requires an explicit `allowedOrigins` list; messages from any other origin are ignored. Don't ship `"*"`.
-- **Scoped exposure.** `exposedTo` passes through to the spec's registration options for limiting which agent contexts see a tool.
+- **Scoped exposure.** Tools default to same-origin/built-in-agent visibility; `exposedTo` selectively exposes a tool to listed origins — and the kit **enforces** it. The ponyfill validates each entry at registration (serialized, potentially trustworthy origin — https or http on localhost — else `SecurityError`) and hides non-visible tools from `getTools({ origin })` / `executeTool(…, { origin })` (NotFoundError, no existence leak). The MCP bridge filters `tools/list` and `tools/call` by the connected peer's origin.
 
 ## Roadmap
 

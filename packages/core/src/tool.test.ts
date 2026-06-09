@@ -58,13 +58,35 @@ describe("tool() registration", () => {
     );
   });
 
-  it("throws on empty name or missing description", () => {
-    expect(() => tool("", { description: "d", run: () => "ok" })).toThrow(
-      /non-empty/,
-    );
+  it("throws on invalid names or missing description", () => {
+    for (const bad of ["", "has space", "x".repeat(129), "emoji🎈"]) {
+      expect(() => tool(bad, { description: "d", run: () => "ok" })).toThrow(
+        /1-128 characters from \[A-Za-z0-9_.-\]/,
+      );
+    }
     expect(() => tool("no-desc", { description: "", run: () => "ok" })).toThrow(
       /needs a description/,
     );
+  });
+
+  it("accepts names at the spec boundary (128 chars, [A-Za-z0-9_.-])", () => {
+    const t = tool("A-z0.9_".padEnd(128, "x"), {
+      description: "d",
+      run: () => "ok",
+    });
+    expect(t.unregistered).toBe(false);
+  });
+
+  it("surfaces exposedTo on the handle", () => {
+    const t = tool("scoped", {
+      description: "d",
+      exposedTo: ["https://agent.example"],
+      run: () => "ok",
+    });
+    expect(t.exposedTo).toEqual(["https://agent.example"]);
+
+    const open = tool("open", { description: "d", run: () => "ok" });
+    expect(open.exposedTo).toBeUndefined();
   });
 
   it("maps readOnly/untrustedContent to spec annotations", () => {
@@ -343,6 +365,48 @@ describe("tool() unregister", () => {
     expect(t.unregistered).toBe(true);
     expect(getRegisteredTool("aborted")).toBeUndefined();
     expect(host().getTools()).toHaveLength(0);
+  });
+
+  it("a pre-aborted signal never registers (no registry, no host)", async () => {
+    const ac = new AbortController();
+    ac.abort();
+    const t = tool("never-born", {
+      description: "d",
+      signal: ac.signal,
+      run: () => "ok",
+    });
+
+    expect(t.unregistered).toBe(true);
+    expect(getRegisteredTools().map((x) => x.name)).not.toContain("never-born");
+    // No host was installed/touched for this registration.
+    expect(document.modelContext).toBeUndefined();
+    await expect(t.ready).resolves.toBeUndefined();
+
+    const result = await t.execute({});
+    expect(result.isError).toBe(true);
+
+    // The name is immediately free for a real registration.
+    expect(() =>
+      tool("never-born", { description: "d", run: () => "ok" }),
+    ).not.toThrow();
+  });
+
+  it("a host registration rejection unregisters the tool (ready still rejects)", async () => {
+    // The ponyfill rejects untrustworthy exposedTo origins with SecurityError;
+    // the kit must then drop the tool instead of leaving a registry zombie.
+    const t = tool("host-rejected", {
+      description: "d",
+      exposedTo: ["http://insecure.example"],
+      run: () => "ok",
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(t.ready).rejects.toMatchObject({ name: "SecurityError" });
+    // The cleanup branch runs on the same rejection; let it settle.
+    await Promise.resolve();
+    expect(t.unregistered).toBe(true);
+    expect(getRegisteredTool("host-rejected")).toBeUndefined();
+    expect(error).toHaveBeenCalled();
   });
 
   it("frees the name for re-registration", () => {

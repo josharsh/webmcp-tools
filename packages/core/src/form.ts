@@ -4,11 +4,17 @@ import type { JsonSchema, RegisteredTool } from "./types.js";
 /**
  * Declarative WebMCP helpers.
  *
- * The declarative API explainer specifies `toolname` / `tooldescription`
- * attributes on `<form>` elements, with the browser synthesizing a tool from
- * the form's fields. Native support is still rolling out — these helpers
- * synthesize the same tools in userland so declarative forms work in every
- * browser the kit runs in (progressive enhancement).
+ * The declarative API explainer specifies `toolname` / `tooldescription` /
+ * `toolautosubmit` attributes on `<form>` elements (and
+ * `toolparamdescription` on form controls), with the browser synthesizing a
+ * tool from the form's fields. Native support is still rolling out — these
+ * helpers synthesize the same tools in userland so declarative forms work in
+ * every browser the kit runs in (progressive enhancement).
+ *
+ * Per the explainer, filling a form does NOT submit it unless the form has
+ * the `toolautosubmit` boolean attribute (or `options.autoSubmit` is set):
+ * without it the fields are filled, the submit control is focused, and the
+ * user is expected to review and submit manually.
  */
 
 const SKIPPED_TYPES = new Set(["submit", "button", "reset", "image", "hidden"]);
@@ -25,7 +31,12 @@ function fieldToSchema(
   if (!el.name) return null;
   if (el instanceof HTMLInputElement && SKIPPED_TYPES.has(el.type)) return null;
 
-  const description = el.getAttribute("tooldescription") ?? undefined;
+  // Spec attribute is `toolparamdescription`; `tooldescription` is kept as a
+  // back-compat fallback from earlier kit versions.
+  const description =
+    el.getAttribute("toolparamdescription") ??
+    el.getAttribute("tooldescription") ??
+    undefined;
   const base: JsonSchema = description ? { description } : {};
 
   if (el instanceof HTMLSelectElement) {
@@ -82,7 +93,14 @@ export interface FormToolOptions {
   /** Require user confirmation before the form is submitted. */
   confirm?: boolean | string;
   /**
-   * Called after fields are filled, instead of `form.requestSubmit()`.
+   * Submit the form automatically after filling it. Defaults to whether the
+   * form has the `toolautosubmit` attribute; an explicit boolean here wins
+   * over the attribute. Without auto-submit the tool fills the fields,
+   * focuses the submit control, and asks the user to review and submit.
+   */
+  autoSubmit?: boolean;
+  /**
+   * Called after fields are filled, instead of submitting/focusing.
    * Return a value to send back to the agent.
    */
   onSubmit?: (form: HTMLFormElement) => unknown | Promise<unknown>;
@@ -154,8 +172,23 @@ export function formTool(
         el.dispatchEvent(new Event("change", { bubbles: true }));
       }
       if (options.onSubmit) return options.onSubmit(form);
-      form.requestSubmit();
-      return `Submitted form "${name}".`;
+      const autoSubmit =
+        options.autoSubmit ?? form.hasAttribute("toolautosubmit");
+      if (autoSubmit) {
+        form.requestSubmit();
+        return `Submitted form "${name}".`;
+      }
+      // Per the declarative explainer: without `toolautosubmit` the agent
+      // fills the form and the user reviews + submits manually. Focus the
+      // submit control to draw attention to it.
+      const submitControl = form.querySelector<HTMLElement>(
+        "button[type=submit],input[type=submit],button:not([type])",
+      );
+      submitControl?.focus();
+      return (
+        `Filled form "${name}". Awaiting user review — the user must ` +
+        "submit manually."
+      );
     },
   });
 }
@@ -165,19 +198,35 @@ export function formTool(
  * for forms added or removed later. Returns a cleanup function.
  */
 export function autoRegisterForms(root: ParentNode = document): () => void {
-  const registered = new Map<HTMLFormElement, RegisteredTool>();
+  const handles = new Set<RegisteredTool>();
+
+  // The handle is stored as an expando on the form itself: DOM wrappers seen
+  // via querySelectorAll, addedNodes, and mutation targets may be distinct
+  // objects for the same underlying element, so an element-keyed Map is not
+  // reliable across those code paths.
+  const HANDLE = "__webmcpKitFormTool";
+  type FormWithHandle = HTMLFormElement & {
+    [HANDLE]?: RegisteredTool;
+  };
 
   const register = (form: HTMLFormElement) => {
-    if (registered.has(form)) return;
+    const f = form as FormWithHandle;
+    if (f[HANDLE] && !f[HANDLE].unregistered) return;
     try {
-      registered.set(form, formTool(form));
+      const handle = formTool(form);
+      f[HANDLE] = handle;
+      handles.add(handle);
     } catch (err) {
       console.warn("webmcp-kit: skipping form tool registration:", err);
     }
   };
   const unregister = (form: HTMLFormElement) => {
-    registered.get(form)?.unregister();
-    registered.delete(form);
+    const f = form as FormWithHandle;
+    const handle = f[HANDLE];
+    if (!handle) return;
+    handle.unregister();
+    handles.delete(handle);
+    delete f[HANDLE];
   };
 
   root
@@ -186,6 +235,19 @@ export function autoRegisterForms(root: ParentNode = document): () => void {
 
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
+      if (mutation.type === "attributes") {
+        const target = mutation.target;
+        if (!(target instanceof Element)) continue;
+        const form =
+          target instanceof HTMLFormElement ? target : target.closest("form");
+        if (!form) continue;
+        // The tool declaration changed: re-synthesize from scratch.
+        // unregister() is synchronous, so the name is free again before
+        // formTool() re-registers it.
+        unregister(form);
+        if (form.hasAttribute("toolname")) register(form);
+        continue;
+      }
       for (const node of mutation.addedNodes) {
         if (!(node instanceof Element)) continue;
         if (node instanceof HTMLFormElement && node.hasAttribute("toolname")) {
@@ -207,11 +269,13 @@ export function autoRegisterForms(root: ParentNode = document): () => void {
   observer.observe(root instanceof Document ? root.documentElement : root, {
     childList: true,
     subtree: true,
+    attributes: true,
+    attributeFilter: ["toolname", "tooldescription", "toolautosubmit"],
   });
 
   return () => {
     observer.disconnect();
-    for (const toolHandle of registered.values()) toolHandle.unregister();
-    registered.clear();
+    for (const toolHandle of handles) toolHandle.unregister();
+    handles.clear();
   };
 }

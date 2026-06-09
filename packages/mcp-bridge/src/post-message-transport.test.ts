@@ -151,6 +151,93 @@ describe("PostMessageServerTransport", () => {
     );
   });
 
+  it("a malformed envelope does not bind a peer", async () => {
+    const channel = nextChannel();
+    const transport = await startedServer([ORIGIN], channel);
+    transport.onerror = () => {};
+
+    postAsClient(channel, { not: "json-rpc" });
+    await flush();
+
+    expect(transport.peerOrigin).toBeUndefined();
+    await expect(transport.send(ping)).rejects.toThrow(
+      /before a client message/,
+    );
+  });
+
+  it("exposes the bound peer origin via the peerOrigin getter", async () => {
+    const channel = nextChannel();
+    const transport = await startedServer(["https://trusted.example"], channel);
+    transport.onmessage = () => {};
+
+    expect(transport.peerOrigin).toBeUndefined();
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { channel, side: "client", message: ping },
+        origin: "https://trusted.example",
+        source: { postMessage: vi.fn() } as unknown as Window,
+      }),
+    );
+    expect(transport.peerOrigin).toBe("https://trusted.example");
+  });
+
+  it("binds once: a second source/origin cannot hijack the session", async () => {
+    const channel = nextChannel();
+    const transport = await startedServer(
+      ["https://trusted.example", "https://also-allowed.example"],
+      channel,
+    );
+    const onmessage = vi.fn();
+    transport.onmessage = onmessage;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const firstSource = { postMessage: vi.fn() };
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { channel, side: "client", message: ping },
+        origin: "https://trusted.example",
+        source: firstSource as unknown as Window,
+      }),
+    );
+    expect(onmessage).toHaveBeenCalledTimes(1);
+    expect(transport.peerOrigin).toBe("https://trusted.example");
+
+    // Different origin AND different source: ignored even though allowed.
+    const hijacker = { postMessage: vi.fn() };
+    const hijackPing: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      id: 99,
+      method: "ping",
+    };
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { channel, side: "client", message: hijackPing },
+        origin: "https://also-allowed.example",
+        source: hijacker as unknown as Window,
+      }),
+    );
+    expect(onmessage).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(transport.peerOrigin).toBe("https://trusted.example");
+
+    // Same origin, different source window: also ignored (warn only once).
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { channel, side: "client", message: hijackPing },
+        origin: "https://trusted.example",
+        source: hijacker as unknown as Window,
+      }),
+    );
+    expect(onmessage).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    // Replies still target the original peer only.
+    const reply: JSONRPCMessage = { jsonrpc: "2.0", id: 1, result: {} };
+    await transport.send(reply);
+    expect(firstSource.postMessage).toHaveBeenCalledTimes(1);
+    expect(hijacker.postMessage).not.toHaveBeenCalled();
+  });
+
   it("replies to the captured source targeting the captured origin (no wildcard)", async () => {
     const channel = nextChannel();
     const transport = await startedServer(["https://trusted.example"], channel);

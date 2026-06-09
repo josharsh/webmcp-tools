@@ -52,8 +52,14 @@ abstract class BasePostMessageTransport implements Transport {
   protected abstract listenWindow(): Window;
   /** Origin check for an incoming event. */
   protected abstract acceptsOrigin(event: MessageEvent): boolean;
-  /** Hook for capturing the peer (server side replies to event.source). */
-  protected onAccepted(_event: MessageEvent): void {}
+  /**
+   * Peer check, invoked only after the envelope carried a successfully
+   * parsed JSON-RPC message. Return false to drop the message (the server
+   * side uses this to bind a single peer and reject hijack attempts).
+   */
+  protected acceptsPeer(_event: MessageEvent): boolean {
+    return true;
+  }
 
   async start(): Promise<void> {
     if (this.started) {
@@ -66,7 +72,6 @@ abstract class BasePostMessageTransport implements Transport {
     this.listener = (event: MessageEvent) => {
       if (!this.acceptsOrigin(event)) return;
       if (!matchesEnvelope(event.data, this.channel, otherSide)) return;
-      this.onAccepted(event);
       let message: JSONRPCMessage;
       try {
         message = JSONRPCMessageSchema.parse(event.data.message);
@@ -74,6 +79,8 @@ abstract class BasePostMessageTransport implements Transport {
         this.onerror?.(err instanceof Error ? err : new Error(String(err)));
         return;
       }
+      // Only a valid JSON-RPC message may bind/match the peer.
+      if (!this.acceptsPeer(event)) return;
       this.onmessage?.(message);
     };
     this.listenWindow().addEventListener(
@@ -120,15 +127,18 @@ export interface PostMessageServerTransportOptions {
 
 /**
  * MCP transport that serves the page's tools over `window.postMessage`.
- * Validates `event.origin` against `allowedOrigins` and replies via
- * `event.source` targeted at the captured origin (never a wildcard when a
- * concrete origin is known).
+ * Validates `event.origin` against `allowedOrigins`, binds exactly one peer
+ * — the {source, origin} of the first valid JSON-RPC message — and replies
+ * via that source targeted at its origin (never a wildcard when a concrete
+ * origin is known). Messages from any other source/origin after binding are
+ * ignored.
  */
 export class PostMessageServerTransport extends BasePostMessageTransport {
   protected readonly side: Side = "server";
   private readonly win: Window;
   private readonly allowedOrigins: string[];
   private peer: { source: Window; origin: string } | undefined;
+  private warnedAboutPeerMismatch = false;
 
   constructor(options: PostMessageServerTransportOptions) {
     super(options.channel);
@@ -142,6 +152,14 @@ export class PostMessageServerTransport extends BasePostMessageTransport {
     this.allowedOrigins = options.allowedOrigins;
   }
 
+  /**
+   * Origin of the bound peer, set once its first valid JSON-RPC message
+   * arrives. The bridge server uses this to enforce per-tool `exposedTo`.
+   */
+  get peerOrigin(): string | undefined {
+    return this.peer?.origin;
+  }
+
   protected listenWindow(): Window {
     return this.win;
   }
@@ -153,10 +171,24 @@ export class PostMessageServerTransport extends BasePostMessageTransport {
     );
   }
 
-  protected override onAccepted(event: MessageEvent): void {
-    // Capture the connecting peer so send() can target it precisely.
+  protected override acceptsPeer(event: MessageEvent): boolean {
     const source = (event.source ?? this.win) as Window;
-    this.peer = { source, origin: event.origin };
+    if (!this.peer) {
+      // First valid JSON-RPC message binds the session to this peer.
+      this.peer = { source, origin: event.origin };
+      return true;
+    }
+    if (this.peer.source === source && this.peer.origin === event.origin) {
+      return true;
+    }
+    if (!this.warnedAboutPeerMismatch) {
+      this.warnedAboutPeerMismatch = true;
+      console.warn(
+        "PostMessageServerTransport: ignoring message from a different " +
+          "source/origin than the established session peer",
+      );
+    }
+    return false;
   }
 
   async send(message: JSONRPCMessage): Promise<void> {
