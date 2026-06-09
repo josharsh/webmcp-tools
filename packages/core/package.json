@@ -1,0 +1,61 @@
+{
+  "name": "webmcp-kit",
+  "version": "0.1.0",
+  "description": "Typed, validated, ergonomic SDK for WebMCP (document.modelContext) — expose your site's functionality as tools AI agents can call.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./zod": {
+      "types": "./dist/zod.d.ts",
+      "import": "./dist/zod.js",
+      "require": "./dist/zod.cjs"
+    },
+    "./ponyfill": {
+      "types": "./dist/ponyfill.d.ts",
+      "import": "./dist/ponyfill.js",
+      "require": "./dist/ponyfill.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "zod": "^3.25.0 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "zod": "^4.0.0"
+  },
+  "keywords": [
+    "webmcp",
+    "model-context",
+    "ai",
+    "agents",
+    "mcp",
+    "browser",
+    "tools",
+    "w3c"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/josharsh/webmcp-kit"
+  }
+}
