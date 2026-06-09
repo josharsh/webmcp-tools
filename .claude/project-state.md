@@ -26,7 +26,12 @@ pnpm install / build / typecheck / vitest (163 tests, 0 skipped) /
 example build / attw (no problems, node10 green) / npm pack (README+LICENSE
 in tarball) / prettier check.
 
-Fixes applied this session (UNCOMMITTED — needs a commit):
+COMMITTED: ee6d547 (review fixes), df28daa (adapters/bridge/tests/example),
+ccf29b5 (core). Working tree clean. READY TO PUBLISH — remaining steps are
+Harsh's call: create GitHub repo josharsh/webmcp-kit + push; claim @webmcp-kit
+npm scope; `pnpm -r publish --access public`.
+
+Fixes applied in ee6d547:
 
 - Packaging: per-condition `types` in exports (.d.cts for CJS), typesVersions
   for core subpaths, peerDeps `workspace:^`, LICENSE copied into all 5
