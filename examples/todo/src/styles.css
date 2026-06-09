@@ -1,0 +1,190 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  background: #f4f5f7;
+  color: #1c1e21;
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.75rem;
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.subtitle,
+.hint {
+  margin: 0 0 1rem;
+  color: #5f6368;
+  font-size: 0.9rem;
+}
+
+code {
+  background: #eceef1;
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.85em;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e2e4e8;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.add-row,
+.sim-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #c9ccd1;
+  border-radius: 6px;
+  width: 100%;
+}
+
+textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+button:disabled {
+  background: #9ca3af;
+  cursor: default;
+}
+
+button.danger {
+  background: #dc2626;
+}
+
+button.danger:hover {
+  background: #b91c1c;
+}
+
+.todo-list,
+.tool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.todo-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid #eef0f3;
+}
+
+.todo-list li.empty {
+  color: #9ca3af;
+  justify-content: center;
+}
+
+.todo-list li.done .todo-text {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.todo-id {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  min-width: 2rem;
+}
+
+.todo-text {
+  flex: 1;
+}
+
+.todo-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.todo-actions button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.tool-list li {
+  padding: 0.4rem 0;
+  border-top: 1px solid #eef0f3;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tool-name {
+  background: #e0e9ff;
+  color: #1e40af;
+}
+
+.tool-desc {
+  color: #5f6368;
+  font-size: 0.85rem;
+}
+
+.badge {
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.output {
+  background: #0f172a;
+  color: #d1e3ff;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  margin: 0.75rem 0 0;
+  white-space: pre-wrap;
+}

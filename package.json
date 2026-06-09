@@ -12,6 +12,11 @@
     "lint": "prettier --check 'packages/*/src/**/*.{ts,tsx}'",
     "format": "prettier --write 'packages/*/src/**/*.{ts,tsx}'"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "devDependencies": {
     "@types/node": "^20.17.0",
     "happy-dom": "^15.11.7",

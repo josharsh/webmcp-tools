@@ -1,0 +1,49 @@
+{
+  "name": "@webmcp-kit/mcp-bridge",
+  "version": "0.1.0",
+  "description": "Expose webmcp-kit tools as a real MCP server — lets browser extensions, iframe agents, and devtools list and call the page's WebMCP tools over postMessage.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "peerDependencies": {
+    "webmcp-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "webmcp-kit": "workspace:*"
+  },
+  "keywords": [
+    "webmcp",
+    "mcp",
+    "model-context-protocol",
+    "bridge",
+    "postmessage",
+    "ai",
+    "agents",
+    "browser"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/josharsh/webmcp-kit"
+  }
+}

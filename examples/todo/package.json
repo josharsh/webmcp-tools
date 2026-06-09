@@ -1,0 +1,29 @@
+{
+  "name": "@webmcp-kit/example-todo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Runnable Vite + React todo app demonstrating webmcp-kit end to end.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@webmcp-kit/mcp-bridge": "workspace:*",
+    "@webmcp-kit/react": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "webmcp-kit": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

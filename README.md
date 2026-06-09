@@ -1,0 +1,190 @@
+# webmcp-kit
+
+**Typed, validated, ergonomic SDK for [WebMCP](https://github.com/webmachinelearning/webmcp) — expose your site's functionality as tools AI agents can call.**
+
+```ts
+import { tool } from "webmcp-kit";
+import "webmcp-kit/zod"; // once, anywhere — enables Zod → JSON Schema
+import { z } from "zod";
+
+tool("add-to-cart", {
+  description: "Add a product to the shopping cart",
+  input: z.object({ sku: z.string(), qty: z.number().int().positive() }),
+  confirm: ({ qty }) => qty > 5 && `Add ${qty} items to your cart?`,
+  async run({ sku, qty }) {
+    await cart.add(sku, qty);
+    return { ok: true, cartSize: cart.size };
+  },
+});
+```
+
+That's a fully typed, runtime-validated, human-confirmable WebMCP tool — working today in every browser.
+
+## What is WebMCP?
+
+[WebMCP](https://github.com/webmachinelearning/webmcp) is a W3C Web Machine Learning CG proposal that lets web pages expose client-side functionality as "tools" — natural-language-described, JSON-Schema-typed functions that AI agents (browser-built-in, extension-hosted, or iframe-embedded) can discover and invoke via `document.modelContext`. Think of it as an in-page MCP server: instead of agents scraping your DOM and simulating clicks, your page tells them exactly what it can do, and they call it directly while the user watches the same UI update.
+
+Chrome ships an early implementation behind an **origin trial starting in Chrome 149**. Everywhere else, `document.modelContext` doesn't exist yet — which is exactly the gap this kit fills.
+
+## What webmcp-kit adds
+
+The raw API is deliberately minimal: untyped `Record<string, unknown>` inputs, hand-written JSON Schema, no validation, no enumeration of registered tools from page script, and nothing at all in browsers without the trial. webmcp-kit layers on:
+
+- **Typed + validated tools** — define inputs with Zod (or any [Standard Schema](https://standardschema.dev) library: Valibot, ArkType…). The JSON Schema descriptor is generated for you, and every agent call is validated at the boundary before your code runs. Your `run` receives properly typed args.
+- **Confirm gates** — `confirm: true | string | (args) => …` puts a human-in-the-loop check in front of destructive tools, routed through the spec's `ModelContextClient.requestUserInteraction` when the browser supports it.
+- **Spec-compliant ponyfill** — browsers without WebMCP get a working `document.modelContext`, plus a provisional agent-side surface (`getTools()` / `executeTool()`) so bridges and tests have something real to talk to. Your code is identical everywhere.
+- **Framework bindings** — `useWebMCPTool` for React, composables for Vue, actions/runes helpers for Svelte. Tools register on mount, unregister on unmount, no leaks.
+- **Declarative forms** — `formTool(form)` / `autoRegisterForms()` implement the [declarative `<form toolname>` proposal](https://github.com/webmachinelearning/webmcp/blob/main/declarative-api-explainer.md) in userland, today.
+- **MCP bridge** — serve your page's tools to a _real_ MCP client (extension agent, parent frame, devtool) over `postMessage`, speaking actual MCP protocol.
+
+## Quickstart
+
+```sh
+npm install webmcp-kit zod
+```
+
+### Vanilla
+
+```ts
+import { tool, getRegisteredTools } from "webmcp-kit";
+import "webmcp-kit/zod";
+import { z } from "zod";
+
+const search = tool("search-products", {
+  description: "Search the product catalog",
+  input: z.object({ query: z.string().min(1) }),
+  readOnly: true, // → annotations.readOnlyHint
+  run({ query }) {
+    return { results: catalog.search(query) };
+  },
+});
+
+getRegisteredTools(); // → [RegisteredTool] — enumerable, testable
+search.execute({ query: "lamp" }); // invoke locally exactly as an agent would
+search.unregister(); // gone, everywhere
+```
+
+No schema library? Pass raw JSON Schema as `input` instead — the kit still validates `type`/`required`/`properties` at the boundary.
+
+### React
+
+```tsx
+import { useWebMCPTool, useRegisteredTools } from "@webmcp-kit/react";
+import "webmcp-kit/zod";
+import { z } from "zod";
+
+function Cart() {
+  const [items, setItems] = useState<Item[]>([]);
+
+  useWebMCPTool("clear-cart", {
+    description: "Remove every item from the cart",
+    confirm: true,
+    run() {
+      setItems([]);
+      return "Cart cleared.";
+    },
+  });
+
+  const tools = useRegisteredTools(); // live list, re-renders on change
+  // ...
+}
+```
+
+Tools follow the component lifecycle: registered on mount, unregistered on unmount. See [`examples/todo`](./examples/todo) for a complete runnable app with an agent-call simulator.
+
+### Declarative forms
+
+Annotate the forms you already have:
+
+```html
+<form toolname="subscribe" tooldescription="Subscribe to the newsletter">
+  <input name="email" type="email" required tooldescription="Email address" />
+  <button>Subscribe</button>
+</form>
+```
+
+```ts
+import { autoRegisterForms } from "webmcp-kit";
+autoRegisterForms(); // registers every form[toolname], watches for new ones
+```
+
+Field names and types become the input schema (`email` → `{ type: "string", format: "email" }`, required honored); executing the tool fills the fields (dispatching `input`/`change` so React/Vue controlled inputs notice) and submits the form. `formTool(form, { confirm, onSubmit })` gives per-form control.
+
+### MCP bridge (extension / iframe agents)
+
+Native WebMCP only serves browser-built-in agents. The bridge serves everyone else — it exposes the kit's tool registry as a real MCP server over `postMessage`:
+
+```ts
+// In the page
+import {
+  createWebMCPServer,
+  PostMessageServerTransport,
+} from "@webmcp-kit/mcp-bridge";
+
+const bridge = createWebMCPServer({ name: "my-app", version: "1.0.0" });
+await bridge.connect(
+  new PostMessageServerTransport({
+    allowedOrigins: ["https://agent.example"], // who may connect — never "*"
+  }),
+);
+// later: bridge.close()
+```
+
+An agent in an extension content script or embedding frame connects with an MCP client over the matching `postMessage` transport and gets `tools/list` + `tools/call` — with the kit's validation and confirm gates still enforced in the page. Tools registered or unregistered later are picked up live via `notifications/tools/list_changed`.
+
+## Packages
+
+| Package                                           | What it is                                                                                    |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [`webmcp-kit`](./packages/core)                   | Core: `tool()`, validation, confirm gates, registry, ponyfill, declarative forms, Zod adapter |
+| [`@webmcp-kit/react`](./packages/react)           | React hooks: `useWebMCPTool`, `useRegisteredTools`                                            |
+| [`@webmcp-kit/vue`](./packages/vue)               | Vue 3 composables tied to component lifecycle                                                 |
+| [`@webmcp-kit/svelte`](./packages/svelte)         | Svelte helpers tied to component lifecycle                                                    |
+| [`@webmcp-kit/mcp-bridge`](./packages/mcp-bridge) | MCP server bridge over `postMessage` for extension/iframe agents                              |
+| [`@webmcp-kit/example-todo`](./examples/todo)     | Runnable Vite + React demo (private)                                                          |
+
+## Browser support
+
+| Environment                              | `document.modelContext` | What the kit does                                                                                                                                                                                 |
+| ---------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chrome 149+ (origin trial enabled)       | Native                  | `tool()` registers on the native host; built-in agents call your tools; confirm gates route through native `requestUserInteraction`                                                               |
+| Chrome (no trial), Firefox, Safari, Edge | Missing                 | Ponyfill installed automatically (`missingHost: "ponyfill"`, the default); identical registration semantics; extension/iframe agents reach tools via the bridge or the ponyfill's `executeTool()` |
+| SSR / Node (no `document`)               | Missing                 | Registration is a safe no-op (or set `missingHost: "throw"` to fail fast)                                                                                                                         |
+
+Feature-detect with `hasNativeWebMCP()` / `hasWebMCP()`. The ponyfill defines `document.modelContext` as configurable, so a native implementation arriving later can take over.
+
+## Security
+
+Tools are an attack surface — an agent is an untrusted caller influenced by page content, user prompts, and potentially injected instructions. The kit's posture:
+
+- **Validation at the boundary.** Every invocation is validated against the tool's schema _before_ `run` executes — Standard Schema validation for Zod/Valibot/ArkType inputs, structural JSON Schema checks otherwise. Malformed or extra-clever input is rejected with an `isError` result, never thrown into your app.
+- **Confirm gates.** `confirm` puts the human back in the loop for destructive or high-stakes actions, the spec's recommended defense against prompt injection driving unwanted tool calls. The handler routes through the native `ModelContextClient` so the browser can pause the agent loop; the fallback is `window.confirm`, and in non-interactive contexts with no handler configured the default is **deny**.
+- **`untrustedContentHint`.** Set `untrustedContent: true` on tools whose results echo user-generated content, so agent harnesses can treat the output as data, not instructions (spec `ToolAnnotations`).
+- **Origin allowlists in the bridge.** `PostMessageServerTransport` requires an explicit `allowedOrigins` list; messages from any other origin are ignored. Don't ship `"*"`.
+- **Scoped exposure.** `exposedTo` passes through to the spec's registration options for limiting which agent contexts see a tool.
+
+## Roadmap
+
+Tracking the spec as it evolves ([open issues](https://github.com/webmachinelearning/webmcp/issues)):
+
+- **`outputSchema`** — structured output contracts alongside `inputSchema`, so agents can reason about return values ([webmcp#9](https://github.com/webmachinelearning/webmcp/issues/9)). The kit already returns `structuredContent`; typed output schemas land when the spec settles.
+- **Elicitation / user prompting** — richer mid-tool user authorization than confirm dialogs, building on `ModelContextClient` ([webmcp#165](https://github.com/webmachinelearning/webmcp/issues/165), [webmcp#50](https://github.com/webmachinelearning/webmcp/issues/50)).
+- **Service-worker tools** — background tool discovery and invocation for sites the user doesn't have open, per the spec's [Service Workers explainer](https://github.com/webmachinelearning/webmcp/blob/main/docs/service-workers.md).
+- More schema adapters (Valibot/ArkType descriptor generation — runtime validation already works via Standard Schema) and devtools for inspecting live tool traffic.
+
+## Contributing
+
+PRs welcome. This is a pnpm workspace:
+
+```sh
+pnpm install
+pnpm build       # build all packages
+pnpm test        # vitest, happy-dom
+pnpm typecheck
+```
+
+Tests live next to source (`*.test.ts`). Keep dependencies minimal; match the existing code style (Prettier defaults).
+
+## License
+
+[MIT](./LICENSE) © 2026 Harsh

@@ -1,0 +1,47 @@
+{
+  "name": "@webmcp-kit/svelte",
+  "version": "0.1.0",
+  "description": "Svelte adapter for webmcp-kit — register WebMCP tools with a Svelte action, a runes-friendly helper, and a readable store of registered tools.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "webmcp-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "webmcp-kit": "workspace:*"
+  },
+  "keywords": [
+    "webmcp",
+    "svelte",
+    "svelte-action",
+    "model-context",
+    "ai",
+    "agents",
+    "mcp",
+    "browser",
+    "tools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/josharsh/webmcp-kit"
+  }
+}
