@@ -1,21 +1,21 @@
-# webmcp-kit — project state
+# webmcp-tools — project state
 
 ## What this is
 
-TypeScript monorepo for **webmcp-kit**: typed, validated SDK for WebMCP
+TypeScript monorepo for **webmcp-tools**: typed, validated SDK for WebMCP
 (`document.modelContext`, W3C Web ML CG proposal, Chrome 149 origin trial).
 Lets websites expose functionality as tools AI agents call directly.
 Spec reference clone: /tmp/webmcp-spec (webmachinelearning/webmcp).
 
 ## Packages
 
-- `packages/core` → npm `webmcp-kit` — tool() API, schema validation
+- `packages/core` → npm `webmcp-tools` — tool() API, schema validation
   (Standard Schema + JSON Schema subset), confirm gates, ponyfill,
-  formTool/autoRegisterForms, `webmcp-kit/zod` adapter. WRITTEN BY HAND, committed.
-- `packages/react` → `@webmcp-kit/react` — useWebMCPTool/useRegisteredTools
-- `packages/vue` → `@webmcp-kit/vue` — composables
-- `packages/svelte` → `@webmcp-kit/svelte` — action + store contract
-- `packages/mcp-bridge` → `@webmcp-kit/mcp-bridge` — MCP server over
+  formTool/autoRegisterForms, `webmcp-tools/zod` adapter. WRITTEN BY HAND, committed.
+- `packages/react` → `@josharsh/webmcp-react` — useWebMCPTool/useRegisteredTools
+- `packages/vue` → `@josharsh/webmcp-vue` — composables
+- `packages/svelte` → `@josharsh/webmcp-svelte` — action + store contract
+- `packages/mcp-bridge` → `@josharsh/webmcp-bridge` — MCP server over
   postMessage transports (origin-validated, single-peer binding, exposedTo filtering)
 - `examples/todo` — Vite+React demo
 
@@ -28,7 +28,7 @@ in tarball) / prettier check.
 
 COMMITTED: ee6d547 (review fixes), df28daa (adapters/bridge/tests/example),
 ccf29b5 (core). Working tree clean. READY TO PUBLISH — remaining steps are
-Harsh's call: create GitHub repo josharsh/webmcp-kit + push; claim @webmcp-kit
+Harsh's call: create GitHub repo josharsh/webmcp-tools + push; claim @webmcp-tools
 npm scope; `pnpm -r publish --access public`.
 
 Fixes applied in ee6d547:

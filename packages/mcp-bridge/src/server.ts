@@ -7,11 +7,11 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { getRegisteredTools, onRegistryChange } from "webmcp-kit";
-import type { RegisteredTool } from "webmcp-kit";
+import { getRegisteredTools, onRegistryChange } from "webmcp-tools";
+import type { RegisteredTool } from "webmcp-tools";
 
 export interface CreateWebMCPServerOptions {
-  /** MCP server name advertised during initialize. Default: "webmcp-kit". */
+  /** MCP server name advertised during initialize. Default: "webmcp-tools". */
   name?: string;
   /** MCP server version advertised during initialize. Default: "0.1.0". */
   version?: string;
@@ -59,7 +59,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Create an MCP server backed by the webmcp-kit registry.
+ * Create an MCP server backed by the webmcp-tools registry.
  *
  * `tools/list` reflects `getRegisteredTools()` (filtered by each tool's
  * `exposedTo` against the transport's bound peer origin), `tools/call` runs
@@ -72,7 +72,7 @@ export function createWebMCPServer(
 ): WebMCPBridgeServer {
   const server = new Server(
     {
-      name: opts.name ?? "webmcp-kit",
+      name: opts.name ?? "webmcp-tools",
       version: opts.version ?? "0.1.0",
     },
     {
@@ -128,7 +128,7 @@ export function createWebMCPServer(
     server.sendToolListChanged().catch((err) => {
       // Peer may have disconnected between the change and the send; the
       // next tools/list will be correct regardless.
-      console.error("@webmcp-kit/mcp-bridge: list_changed failed", err);
+      console.error("@josharsh/webmcp-bridge: list_changed failed", err);
     });
   });
 

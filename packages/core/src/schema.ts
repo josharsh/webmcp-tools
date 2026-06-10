@@ -176,7 +176,7 @@ export function validateJsonSchema(
 
 // ---------------------------------------------------------------------------
 // Standard Schema → JSON Schema conversion (pluggable, per vendor).
-// `webmcp-kit/zod` registers the Zod v4 converter as a side effect.
+// `webmcp-tools/zod` registers the Zod v4 converter as a side effect.
 // ---------------------------------------------------------------------------
 
 export type SchemaConverter = (schema: StandardSchemaV1) => JsonSchema;
@@ -209,9 +209,9 @@ export function resolveInputSchema(
   const convert = converters.get(vendor);
   if (!convert) {
     throw new Error(
-      `webmcp-kit: no JSON Schema converter registered for "${vendor}" ` +
+      `webmcp-tools: no JSON Schema converter registered for "${vendor}" ` +
         `schemas (tool "${toolName}"). Either import the adapter once ` +
-        `(e.g. \`import "webmcp-kit/zod"\` for Zod v4), call ` +
+        `(e.g. \`import "webmcp-tools/zod"\` for Zod v4), call ` +
         `registerSchemaConverter("${vendor}", fn), or pass inputJsonSchema.`,
     );
   }

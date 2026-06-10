@@ -20,7 +20,7 @@ function emit(event: RegistryEvent): void {
       listener(event);
     } catch (err) {
       // A misbehaving listener must not break tool registration.
-      console.error("webmcp-kit: registry listener threw", err);
+      console.error("webmcp-tools: registry listener threw", err);
     }
   }
 }
@@ -41,7 +41,7 @@ export function registryHas(name: string): boolean {
   return tools.has(name);
 }
 
-/** All tools currently registered through webmcp-kit. */
+/** All tools currently registered through webmcp-tools. */
 export function getRegisteredTools(): RegisteredTool[] {
   return [...tools.values()];
 }

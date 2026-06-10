@@ -1,8 +1,8 @@
-# @webmcp-kit/example-todo
+# @josharsh/webmcp-example-todo
 
-A runnable Vite + React todo app demonstrating [webmcp-kit](../../README.md) end to end:
+A runnable Vite + React todo app demonstrating [webmcp-tools](../../README.md) end to end:
 
-- Four WebMCP tools registered with `useWebMCPTool` from `@webmcp-kit/react`:
+- Four WebMCP tools registered with `useWebMCPTool` from `@josharsh/webmcp-react`:
   `add-todo`, `complete-todo`, `delete-todo` (behind a confirm gate), and
   `list-todos` (read-only).
 - An **Agent Tools** panel that lists live tools via `useRegisteredTools()`.
@@ -17,7 +17,7 @@ A runnable Vite + React todo app demonstrating [webmcp-kit](../../README.md) end
 
 ```sh
 pnpm install        # from the repo root
-pnpm --filter @webmcp-kit/example-todo dev
+pnpm --filter @josharsh/webmcp-example-todo dev
 ```
 
 Then open the printed URL, and use the "Simulate agent call" panel:

@@ -1,5 +1,5 @@
 {
-  "name": "webmcp-kit",
+  "name": "webmcp-tools",
   "version": "0.1.0",
   "description": "Typed, validated, ergonomic SDK for WebMCP (document.modelContext) — expose your site's functionality as tools AI agents can call.",
   "license": "MIT",
@@ -81,6 +81,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/josharsh/webmcp-kit"
+    "url": "https://github.com/josharsh/webmcp-tools"
   }
 }

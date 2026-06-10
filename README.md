@@ -1,10 +1,10 @@
-# webmcp-kit
+# webmcp-tools
 
 **Typed, validated, ergonomic SDK for [WebMCP](https://github.com/webmachinelearning/webmcp) — expose your site's functionality as tools AI agents can call.**
 
 ```ts
-import { tool } from "webmcp-kit";
-import "webmcp-kit/zod"; // once, anywhere — enables Zod → JSON Schema
+import { tool } from "webmcp-tools";
+import "webmcp-tools/zod"; // once, anywhere — enables Zod → JSON Schema
 import { z } from "zod";
 
 tool("add-to-cart", {
@@ -26,9 +26,9 @@ That's a fully typed, runtime-validated, human-confirmable WebMCP tool — worki
 
 Chrome ships an early implementation behind an **origin trial starting in Chrome 149**. Everywhere else, `document.modelContext` doesn't exist yet — which is exactly the gap this kit fills.
 
-## What webmcp-kit adds
+## What webmcp-tools adds
 
-The raw API is deliberately minimal: untyped `Record<string, unknown>` inputs, hand-written JSON Schema, no validation, no enumeration of registered tools from page script, and nothing at all in browsers without the trial. webmcp-kit layers on:
+The raw API is deliberately minimal: untyped `Record<string, unknown>` inputs, hand-written JSON Schema, no validation, no enumeration of registered tools from page script, and nothing at all in browsers without the trial. webmcp-tools layers on:
 
 - **Typed + validated tools** — define inputs with Zod (or any [Standard Schema](https://standardschema.dev) library: Valibot, ArkType…). The JSON Schema descriptor is generated for you, and every agent call is validated at the boundary before your code runs. Your `run` receives properly typed args.
 - **Confirm gates** — `confirm: true | string | (args) => …` puts a human-in-the-loop check in front of destructive tools, routed through the spec's `ModelContextClient.requestUserInteraction` when the browser supports it.
@@ -40,14 +40,14 @@ The raw API is deliberately minimal: untyped `Record<string, unknown>` inputs, h
 ## Quickstart
 
 ```sh
-npm install webmcp-kit zod
+npm install webmcp-tools zod
 ```
 
 ### Vanilla
 
 ```ts
-import { tool, getRegisteredTools } from "webmcp-kit";
-import "webmcp-kit/zod";
+import { tool, getRegisteredTools } from "webmcp-tools";
+import "webmcp-tools/zod";
 import { z } from "zod";
 
 const search = tool("search-products", {
@@ -68,13 +68,13 @@ No schema library? Pass raw JSON Schema as `input` instead — the kit still val
 
 Tool names must be **1–128 characters from `[A-Za-z0-9_.-]`** (the spec constraint) — `tool()` throws on anything else.
 
-> **Zod note:** the `webmcp-kit/zod` adapter uses the **Zod v4 API** via the `zod/v4` subpath, which exists in Zod 3.25+ and Zod 4 — so the full `^3.25.0 || ^4.0.0` peer range works. On Zod 3.25.x, build schemas with `import { z } from "zod/v4"`.
+> **Zod note:** the `webmcp-tools/zod` adapter uses the **Zod v4 API** via the `zod/v4` subpath, which exists in Zod 3.25+ and Zod 4 — so the full `^3.25.0 || ^4.0.0` peer range works. On Zod 3.25.x, build schemas with `import { z } from "zod/v4"`.
 
 ### React
 
 ```tsx
-import { useWebMCPTool, useRegisteredTools } from "@webmcp-kit/react";
-import "webmcp-kit/zod";
+import { useWebMCPTool, useRegisteredTools } from "@josharsh/webmcp-react";
+import "webmcp-tools/zod";
 import { z } from "zod";
 
 function Cart() {
@@ -117,7 +117,7 @@ Annotate the forms you already have:
 ```
 
 ```ts
-import { autoRegisterForms } from "webmcp-kit";
+import { autoRegisterForms } from "webmcp-tools";
 autoRegisterForms(); // registers every form[toolname], watches DOM + attributes
 ```
 
@@ -132,7 +132,7 @@ Native WebMCP only serves browser-built-in agents. The bridge serves everyone el
 import {
   createWebMCPServer,
   PostMessageServerTransport,
-} from "@webmcp-kit/mcp-bridge";
+} from "@josharsh/webmcp-bridge";
 
 const bridge = createWebMCPServer({ name: "my-app", version: "1.0.0" });
 await bridge.connect(
@@ -149,12 +149,12 @@ An agent in an extension content script or embedding frame connects with an MCP 
 
 | Package                                           | What it is                                                                                    |
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [`webmcp-kit`](./packages/core)                   | Core: `tool()`, validation, confirm gates, registry, ponyfill, declarative forms, Zod adapter |
-| [`@webmcp-kit/react`](./packages/react)           | React hooks: `useWebMCPTool`, `useRegisteredTools`                                            |
-| [`@webmcp-kit/vue`](./packages/vue)               | Vue 3 composables tied to component lifecycle                                                 |
-| [`@webmcp-kit/svelte`](./packages/svelte)         | Svelte helpers tied to component lifecycle                                                    |
-| [`@webmcp-kit/mcp-bridge`](./packages/mcp-bridge) | MCP server bridge over `postMessage` for extension/iframe agents                              |
-| [`@webmcp-kit/example-todo`](./examples/todo)     | Runnable Vite + React demo (private)                                                          |
+| [`webmcp-tools`](./packages/core)                   | Core: `tool()`, validation, confirm gates, registry, ponyfill, declarative forms, Zod adapter |
+| [`@josharsh/webmcp-react`](./packages/react)           | React hooks: `useWebMCPTool`, `useRegisteredTools`                                            |
+| [`@josharsh/webmcp-vue`](./packages/vue)               | Vue 3 composables tied to component lifecycle                                                 |
+| [`@josharsh/webmcp-svelte`](./packages/svelte)         | Svelte helpers tied to component lifecycle                                                    |
+| [`@josharsh/webmcp-bridge`](./packages/mcp-bridge) | MCP server bridge over `postMessage` for extension/iframe agents                              |
+| [`@josharsh/webmcp-example-todo`](./examples/todo)     | Runnable Vite + React demo (private)                                                          |
 
 ## Browser support
 

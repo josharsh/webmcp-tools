@@ -8,5 +8,5 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  external: ["react", "webmcp-kit"],
+  external: ["react", "webmcp-tools"],
 });

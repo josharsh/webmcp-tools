@@ -1,23 +1,23 @@
-# @webmcp-kit/mcp-bridge
+# @josharsh/webmcp-bridge
 
-Expose the tools your page registered with [`webmcp-kit`](https://github.com/josharsh/webmcp-kit) as a **real MCP server**, so external agents — browser extensions, iframe agents, devtools — can `tools/list` and `tools/call` them over `window.postMessage`.
+Expose the tools your page registered with [`webmcp-tools`](https://github.com/josharsh/webmcp-tools) as a **real MCP server**, so external agents — browser extensions, iframe agents, devtools — can `tools/list` and `tools/call` them over `window.postMessage`.
 
 The bridge mirrors the kit registry live: tool registrations and unregistrations are pushed to connected agents as `notifications/tools/list_changed`, and every call runs the tool's full pipeline (schema validation, confirm gate, result normalization).
 
 ## Install
 
 ```sh
-npm install webmcp-kit @webmcp-kit/mcp-bridge
+npm install webmcp-tools @josharsh/webmcp-bridge
 ```
 
 ## In the page (server side)
 
 ```ts
-import { tool } from "webmcp-kit";
+import { tool } from "webmcp-tools";
 import {
   createWebMCPServer,
   PostMessageServerTransport,
-} from "@webmcp-kit/mcp-bridge";
+} from "@josharsh/webmcp-bridge";
 
 tool("add-to-cart", {
   description: "Add a product to the shopping cart",
@@ -43,7 +43,7 @@ await bridge.connect(
 
 ```ts
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { PostMessageClientTransport } from "@webmcp-kit/mcp-bridge";
+import { PostMessageClientTransport } from "@josharsh/webmcp-bridge";
 
 const client = new Client({ name: "my-agent", version: "1.0.0" });
 await client.connect(
@@ -68,7 +68,7 @@ const result = await client.callTool({
 | `WebMCPBridgeServer`         | Return type of `createWebMCPServer`. `server` is the raw SDK `Server` for custom handlers.                                                                                                                                                                                                                                                                                                                                                           |
 | `PostMessageServerTransport` | `new (opts: { window?, allowedOrigins, channel? })`. Listens for client messages; **rejects any origin not explicitly in `allowedOrigins`**, binds exactly one peer (the `{source, origin}` of the first valid JSON-RPC message — later messages from other sources/origins are ignored), exposes the bound origin as `peerOrigin`, and replies to the bound `event.source` targeting its origin (never a wildcard when a concrete origin is known). |
 | `PostMessageClientTransport` | `new (opts: { target, targetOrigin, channel? })`. Connects an SDK `Client` to a page's bridge; only consumes replies from `targetOrigin`.                                                                                                                                                                                                                                                                                                            |
-| `DEFAULT_CHANNEL`            | `"webmcp-kit-mcp"` — the default envelope channel. Both peers must use the same channel.                                                                                                                                                                                                                                                                                                                                                             |
+| `DEFAULT_CHANNEL`            | `"webmcp-tools-mcp"` — the default envelope channel. Both peers must use the same channel.                                                                                                                                                                                                                                                                                                                                                             |
 
 ### Semantics
 

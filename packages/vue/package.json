@@ -1,7 +1,7 @@
 {
-  "name": "@webmcp-kit/vue",
+  "name": "@josharsh/webmcp-vue",
   "version": "0.1.0",
-  "description": "Vue 3 composables for webmcp-kit — register WebMCP tools tied to component lifecycle.",
+  "description": "Vue 3 composables for webmcp-tools — register WebMCP tools tied to component lifecycle.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -30,12 +30,12 @@
   },
   "peerDependencies": {
     "vue": "^3.4.0",
-    "webmcp-kit": "workspace:^"
+    "webmcp-tools": "workspace:^"
   },
   "devDependencies": {
     "@vue/test-utils": "^2.4.6",
     "vue": "^3.5.13",
-    "webmcp-kit": "workspace:*"
+    "webmcp-tools": "workspace:*"
   },
   "keywords": [
     "webmcp",
@@ -48,6 +48,9 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/josharsh/webmcp-kit"
+    "url": "https://github.com/josharsh/webmcp-tools"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

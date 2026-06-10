@@ -1,11 +1,11 @@
-# @webmcp-kit/svelte
+# @josharsh/webmcp-svelte
 
-Svelte adapter for [webmcp-kit](https://github.com/josharsh/webmcp-kit). Register typed, validated WebMCP tools (`document.modelContext`) from Svelte components — works in Svelte 4 and 5, no compiler integration needed.
+Svelte adapter for [webmcp-tools](https://github.com/josharsh/webmcp-tools). Register typed, validated WebMCP tools (`document.modelContext`) from Svelte components — works in Svelte 4 and 5, no compiler integration needed.
 
 ## Install
 
 ```sh
-pnpm add webmcp-kit @webmcp-kit/svelte
+pnpm add webmcp-tools @josharsh/webmcp-svelte
 ```
 
 ## Usage
@@ -16,7 +16,7 @@ The tool lives as long as the element. Updates take effect on the next call; cha
 
 ```svelte
 <script>
-  import { webmcpTool } from "@webmcp-kit/svelte";
+  import { webmcpTool } from "@josharsh/webmcp-svelte";
 
   let product = { sku: "abc-123" };
 </script>
@@ -37,7 +37,7 @@ The tool lives as long as the element. Updates take effect on the next call; cha
 
 ```svelte
 <script>
-  import { registerTool } from "@webmcp-kit/svelte";
+  import { registerTool } from "@josharsh/webmcp-svelte";
 
   let status = $state("pending");
 
@@ -58,7 +58,7 @@ The tool lives as long as the element. Updates take effect on the next call; cha
 
 ```svelte
 <script>
-  import { registeredTools } from "@webmcp-kit/svelte";
+  import { registeredTools } from "@josharsh/webmcp-svelte";
 </script>
 
 <ul>
@@ -78,4 +78,4 @@ The tool lives as long as the element. Updates take effect on the next call; cha
 | `WebmcpToolParams<I>`            | type           | `{ name: string } & ToolDefinition<I>` — the action's parameter shape.                                                                                                                                                                                  |
 | `WebmcpToolAction<I>`            | type           | The action's return shape: `{ update(params), destroy() }`.                                                                                                                                                                                             |
 
-`ToolDefinition`, `RegisteredTool`, `ToolResult`, `ToolContext`, `ToolInput`, and `InferToolArgs` are re-exported from `webmcp-kit` for convenience. See the [core README](../core/README.md) for schemas (Zod/Valibot/ArkType or raw JSON Schema), confirm gates, and the ponyfill.
+`ToolDefinition`, `RegisteredTool`, `ToolResult`, `ToolContext`, `ToolInput`, and `InferToolArgs` are re-exported from `webmcp-tools` for convenience. See the [core README](../core/README.md) for schemas (Zod/Valibot/ArkType or raw JSON Schema), confirm gates, and the ponyfill.

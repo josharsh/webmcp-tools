@@ -1,11 +1,11 @@
 /**
- * Zod adapter for webmcp-kit.
+ * Zod adapter for webmcp-tools.
  *
  * Import once anywhere to enable automatic Zod → JSON Schema conversion for
  * tool input descriptors:
  *
  * ```ts
- * import "webmcp-kit/zod";
+ * import "webmcp-tools/zod";
  * ```
  *
  * Requires the Zod v4 API, imported via the `zod/v4` subpath — available in

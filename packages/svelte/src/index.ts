@@ -7,4 +7,4 @@ export type {
   ToolDefinition,
   ToolInput,
   ToolResult,
-} from "webmcp-kit";
+} from "webmcp-tools";

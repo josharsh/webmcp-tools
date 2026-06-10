@@ -8,5 +8,5 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  external: ["webmcp-kit", "@modelcontextprotocol/sdk"],
+  external: ["webmcp-tools", "@modelcontextprotocol/sdk"],
 });

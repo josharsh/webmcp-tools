@@ -1,7 +1,7 @@
 {
-  "name": "@webmcp-kit/mcp-bridge",
+  "name": "@josharsh/webmcp-bridge",
   "version": "0.1.0",
-  "description": "Expose webmcp-kit tools as a real MCP server — lets browser extensions, iframe agents, and devtools list and call the page's WebMCP tools over postMessage.",
+  "description": "Expose webmcp-tools tools as a real MCP server — lets browser extensions, iframe agents, and devtools list and call the page's WebMCP tools over postMessage.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -32,10 +32,10 @@
     "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "peerDependencies": {
-    "webmcp-kit": "workspace:^"
+    "webmcp-tools": "workspace:^"
   },
   "devDependencies": {
-    "webmcp-kit": "workspace:*"
+    "webmcp-tools": "workspace:*"
   },
   "keywords": [
     "webmcp",
@@ -49,6 +49,9 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/josharsh/webmcp-kit"
+    "url": "https://github.com/josharsh/webmcp-tools"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

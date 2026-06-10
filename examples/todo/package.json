@@ -1,8 +1,8 @@
 {
-  "name": "@webmcp-kit/example-todo",
+  "name": "@josharsh/webmcp-example-todo",
   "private": true,
   "version": "0.1.0",
-  "description": "Runnable Vite + React todo app demonstrating webmcp-kit end to end.",
+  "description": "Runnable Vite + React todo app demonstrating webmcp-tools end to end.",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -12,11 +12,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@webmcp-kit/mcp-bridge": "workspace:*",
-    "@webmcp-kit/react": "workspace:*",
+    "@josharsh/webmcp-bridge": "workspace:*",
+    "@josharsh/webmcp-react": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "webmcp-kit": "workspace:*",
+    "webmcp-tools": "workspace:*",
     "zod": "^4.0.0"
   },
   "devDependencies": {

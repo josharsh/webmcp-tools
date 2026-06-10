@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { configure, getRegisteredTool, getRegisteredTools } from "webmcp-kit";
+import { configure, getRegisteredTool, getRegisteredTools } from "webmcp-tools";
 import { registeredTools, registerTool, webmcpTool } from "./webmcp-tool.js";
 
 let confirmAnswer = true;

@@ -1,10 +1,10 @@
-import { getRegisteredTools, onRegistryChange, tool } from "webmcp-kit";
+import { getRegisteredTools, onRegistryChange, tool } from "webmcp-tools";
 import type {
   InferToolArgs,
   RegisteredTool,
   ToolDefinition,
   ToolInput,
-} from "webmcp-kit";
+} from "webmcp-tools";
 
 /** Parameters for the `webmcpTool` action: a tool name plus its definition. */
 export type WebmcpToolParams<I extends ToolInput | undefined = undefined> = {
@@ -87,7 +87,7 @@ export function webmcpTool<I extends ToolInput | undefined = undefined>(
  *
  * ```svelte
  * <script>
- *   import { registerTool } from "@webmcp-kit/svelte";
+ *   import { registerTool } from "@josharsh/webmcp-svelte";
  *
  *   $effect(() => {
  *     const t = registerTool("get-status", {
@@ -108,13 +108,13 @@ export function registerTool<I extends ToolInput | undefined = undefined>(
 }
 
 /**
- * Readable-store-shaped view of all tools registered through webmcp-kit.
+ * Readable-store-shaped view of all tools registered through webmcp-tools.
  * Implements the Svelte store contract (`subscribe` returning an unsubscribe
  * function) without importing svelte, so it works in Svelte 4 and 5:
  *
  * ```svelte
  * <script>
- *   import { registeredTools } from "@webmcp-kit/svelte";
+ *   import { registeredTools } from "@josharsh/webmcp-svelte";
  * </script>
  * {#each $registeredTools as t}<li>{t.name}</li>{/each}
  * ```

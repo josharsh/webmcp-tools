@@ -1,10 +1,10 @@
-# webmcp-kit
+# webmcp-tools
 
 **Typed, validated, ergonomic SDK for [WebMCP](https://github.com/webmachinelearning/webmcp) — expose your site's functionality as tools AI agents can call.**
 
 ```ts
-import { tool } from "webmcp-kit";
-import "webmcp-kit/zod"; // once, anywhere — enables Zod → JSON Schema
+import { tool } from "webmcp-tools";
+import "webmcp-tools/zod"; // once, anywhere — enables Zod → JSON Schema
 import { z } from "zod";
 
 tool("add-to-cart", {
@@ -20,7 +20,7 @@ tool("add-to-cart", {
 
 That's a fully typed, runtime-validated, human-confirmable WebMCP tool — working today in every browser.
 
-> **Note:** the `webmcp-kit/zod` adapter requires the **Zod v4 API**. It imports from the `zod/v4` subpath, which exists in Zod 3.25+ (where v4 ships alongside v3) and in Zod 4. On Zod 3.25.x, build your schemas with `import { z } from "zod/v4"`; on Zod 4, plain `import { z } from "zod"` is already the v4 API.
+> **Note:** the `webmcp-tools/zod` adapter requires the **Zod v4 API**. It imports from the `zod/v4` subpath, which exists in Zod 3.25+ (where v4 ships alongside v3) and in Zod 4. On Zod 3.25.x, build your schemas with `import { z } from "zod/v4"`; on Zod 4, plain `import { z } from "zod"` is already the v4 API.
 
 ## What is WebMCP?
 
@@ -31,12 +31,12 @@ Chrome ships an early implementation behind an **origin trial starting in Chrome
 ## Quickstart
 
 ```sh
-npm install webmcp-kit zod
+npm install webmcp-tools zod
 ```
 
 ```ts
-import { tool, getRegisteredTools } from "webmcp-kit";
-import "webmcp-kit/zod";
+import { tool, getRegisteredTools } from "webmcp-tools";
+import "webmcp-tools/zod";
 import { z } from "zod"; // zod 4 (on zod 3.25.x: import { z } from "zod/v4")
 
 const search = tool("search-products", {
@@ -92,7 +92,7 @@ Annotate the forms you already have:
 ```
 
 ```ts
-import { autoRegisterForms } from "webmcp-kit";
+import { autoRegisterForms } from "webmcp-tools";
 autoRegisterForms(); // registers every form[toolname], watches the DOM
 ```
 
@@ -116,7 +116,7 @@ tool("inventory-sync", {
 });
 ```
 
-The ponyfill validates each entry at registration (must be a serialized, potentially trustworthy origin — https, or http on localhost — else it rejects with a `SecurityError`) and enforces visibility on `getTools({ origin })` / `executeTool(…, { origin })`: non-visible tools are indistinguishable from unregistered ones. The [MCP bridge](https://github.com/josharsh/webmcp-kit/tree/main/packages/mcp-bridge) applies the same filter against the connected peer's origin.
+The ponyfill validates each entry at registration (must be a serialized, potentially trustworthy origin — https, or http on localhost — else it rejects with a `SecurityError`) and enforces visibility on `getTools({ origin })` / `executeTool(…, { origin })`: non-visible tools are indistinguishable from unregistered ones. The [MCP bridge](https://github.com/josharsh/webmcp-tools/tree/main/packages/mcp-bridge) applies the same filter against the connected peer's origin.
 
 ## Security
 
@@ -139,19 +139,19 @@ Tools are an attack surface — an agent is an untrusted caller influenced by pa
 | `formTool(form, options?)`                         | Synthesize a tool from a `<form>`. Options: `name`, `description`, `confirm`, `autoSubmit`, `onSubmit`. |
 | `autoRegisterForms(root?)`                         | Register every `form[toolname]`, watch for DOM and attribute changes. Returns cleanup fn.               |
 | `hasNativeWebMCP()` / `hasWebMCP()`                | Feature detection (native vs. any host).                                                                |
-| `installPonyfill(doc?)` / `isPonyfill(ctx)`        | Manual ponyfill control (imported via `webmcp-kit/ponyfill` for side-effect-free installs).             |
+| `installPonyfill(doc?)` / `isPonyfill(ctx)`        | Manual ponyfill control (imported via `webmcp-tools/ponyfill` for side-effect-free installs).             |
 | `registerSchemaConverter(vendor, fn)`              | Plug in descriptor generation for other Standard Schema vendors.                                        |
 | `normalizeResult(value)` / `errorResult(msg)`      | MCP `CallToolResult` helpers.                                                                           |
-| `webmcp-kit/zod`                                   | Side-effect import: Zod (v4 API) → JSON Schema descriptor generation.                                   |
+| `webmcp-tools/zod`                                   | Side-effect import: Zod (v4 API) → JSON Schema descriptor generation.                                   |
 
 ## Framework adapters & bridge
 
 | Package                                                                          | What it is                                                     |
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| [`@webmcp-kit/react`](https://www.npmjs.com/package/@webmcp-kit/react)           | React hooks: `useWebMCPTool`, `useRegisteredTools`             |
-| [`@webmcp-kit/vue`](https://www.npmjs.com/package/@webmcp-kit/vue)               | Vue 3 composables tied to component lifecycle                  |
-| [`@webmcp-kit/svelte`](https://www.npmjs.com/package/@webmcp-kit/svelte)         | Svelte action + runes helper + tools store                     |
-| [`@webmcp-kit/mcp-bridge`](https://www.npmjs.com/package/@webmcp-kit/mcp-bridge) | Real MCP server over `postMessage` for extension/iframe agents |
+| [`@josharsh/webmcp-react`](https://www.npmjs.com/package/@josharsh/webmcp-react)           | React hooks: `useWebMCPTool`, `useRegisteredTools`             |
+| [`@josharsh/webmcp-vue`](https://www.npmjs.com/package/@josharsh/webmcp-vue)               | Vue 3 composables tied to component lifecycle                  |
+| [`@josharsh/webmcp-svelte`](https://www.npmjs.com/package/@josharsh/webmcp-svelte)         | Svelte action + runes helper + tools store                     |
+| [`@josharsh/webmcp-bridge`](https://www.npmjs.com/package/@josharsh/webmcp-bridge) | Real MCP server over `postMessage` for extension/iframe agents |
 
 ## License
 

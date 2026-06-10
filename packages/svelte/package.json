@@ -1,7 +1,7 @@
 {
-  "name": "@webmcp-kit/svelte",
+  "name": "@josharsh/webmcp-svelte",
   "version": "0.1.0",
-  "description": "Svelte adapter for webmcp-kit — register WebMCP tools with a Svelte action, a runes-friendly helper, and a readable store of registered tools.",
+  "description": "Svelte adapter for webmcp-tools — register WebMCP tools with a Svelte action, a runes-friendly helper, and a readable store of registered tools.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -29,10 +29,10 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "webmcp-kit": "workspace:^"
+    "webmcp-tools": "workspace:^"
   },
   "devDependencies": {
-    "webmcp-kit": "workspace:*"
+    "webmcp-tools": "workspace:*"
   },
   "keywords": [
     "webmcp",
@@ -47,6 +47,9 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/josharsh/webmcp-kit"
+    "url": "https://github.com/josharsh/webmcp-tools"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -120,12 +120,12 @@ export function formTool(
     options.description ?? form.getAttribute("tooldescription") ?? "";
   if (!name) {
     throw new Error(
-      "webmcp-kit: formTool requires a toolname attribute or options.name",
+      "webmcp-tools: formTool requires a toolname attribute or options.name",
     );
   }
   if (!description) {
     throw new Error(
-      `webmcp-kit: form tool "${name}" requires a tooldescription attribute ` +
+      `webmcp-tools: form tool "${name}" requires a tooldescription attribute ` +
         "or options.description",
     );
   }
@@ -217,7 +217,7 @@ export function autoRegisterForms(root: ParentNode = document): () => void {
       f[HANDLE] = handle;
       handles.add(handle);
     } catch (err) {
-      console.warn("webmcp-kit: skipping form tool registration:", err);
+      console.warn("webmcp-tools: skipping form tool registration:", err);
     }
   };
   const unregister = (form: HTMLFormElement) => {

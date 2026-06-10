@@ -1,7 +1,7 @@
 {
-  "name": "@webmcp-kit/react",
+  "name": "@josharsh/webmcp-react",
   "version": "0.1.0",
-  "description": "React hooks for webmcp-kit — register WebMCP (document.modelContext) tools from components with automatic cleanup and latest-props execution.",
+  "description": "React hooks for webmcp-tools — register WebMCP (document.modelContext) tools from components with automatic cleanup and latest-props execution.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -30,14 +30,14 @@
   },
   "peerDependencies": {
     "react": ">=18",
-    "webmcp-kit": "workspace:^"
+    "webmcp-tools": "workspace:^"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "webmcp-kit": "workspace:*"
+    "webmcp-tools": "workspace:*"
   },
   "keywords": [
     "webmcp",
@@ -52,6 +52,9 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/josharsh/webmcp-kit"
+    "url": "https://github.com/josharsh/webmcp-tools"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

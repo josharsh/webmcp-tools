@@ -1,5 +1,5 @@
 /**
- * Types for webmcp-kit.
+ * Types for webmcp-tools.
  *
  * The `ModelContext*` types mirror the WebMCP spec draft
  * (https://webmachinelearning.github.io/webmcp/) so the kit composes with
@@ -127,7 +127,7 @@ declare global {
 }
 
 // ---------------------------------------------------------------------------
-// webmcp-kit public API types
+// webmcp-tools public API types
 // ---------------------------------------------------------------------------
 
 /** Input definition: a Standard Schema (Zod/Valibot/ArkType) or raw JSON Schema. */

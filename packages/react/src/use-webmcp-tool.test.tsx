@@ -6,7 +6,7 @@ import {
   getRegisteredTool,
   getRegisteredTools,
   tool,
-} from "webmcp-kit";
+} from "webmcp-tools";
 import {
   useRegisteredTools,
   useWebMCPForms,

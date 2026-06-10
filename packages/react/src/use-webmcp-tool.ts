@@ -10,14 +10,14 @@ import {
   getRegisteredTools,
   onRegistryChange,
   tool,
-} from "webmcp-kit";
+} from "webmcp-tools";
 import type {
   InferToolArgs,
   RegisteredTool,
   ToolContext,
   ToolDefinition,
   ToolInput,
-} from "webmcp-kit";
+} from "webmcp-tools";
 
 /**
  * Register a WebMCP tool for the lifetime of the component.
@@ -122,7 +122,7 @@ function getServerToolsSnapshot(): RegisteredTool[] {
 }
 
 /**
- * Reactive list of every tool currently registered through webmcp-kit
+ * Reactive list of every tool currently registered through webmcp-tools
  * (including tools registered outside React). Re-renders on register and
  * unregister events.
  */

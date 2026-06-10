@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
-import { getRegisteredTools, tool } from "webmcp-kit";
+import { getRegisteredTools, tool } from "webmcp-tools";
 import { createWebMCPServer } from "./server.js";
 import type { WebMCPBridgeServer } from "./server.js";
 import {

@@ -96,8 +96,8 @@ const TOOL_NAME_RE = /^[A-Za-z0-9_.-]{1,128}$/;
  * Register a typed, validated WebMCP tool on `document.modelContext`.
  *
  * ```ts
- * import { tool } from "webmcp-kit";
- * import "webmcp-kit/zod"; // once, anywhere — enables Zod → JSON Schema
+ * import { tool } from "webmcp-tools";
+ * import "webmcp-tools/zod"; // once, anywhere — enables Zod → JSON Schema
  * import { z } from "zod";
  *
  * const addToCart = tool("add-to-cart", {
@@ -118,16 +118,16 @@ export function tool<I extends ToolInput | undefined = undefined>(
 ): RegisteredTool {
   if (!TOOL_NAME_RE.test(name)) {
     throw new Error(
-      `webmcp-kit: invalid tool name ${JSON.stringify(name)} — names must ` +
+      `webmcp-tools: invalid tool name ${JSON.stringify(name)} — names must ` +
         "be 1-128 characters from [A-Za-z0-9_.-] per the WebMCP spec.",
     );
   }
   if (!definition.description) {
-    throw new Error(`webmcp-kit: tool "${name}" needs a description`);
+    throw new Error(`webmcp-tools: tool "${name}" needs a description`);
   }
   if (registryHas(name)) {
     throw new Error(
-      `webmcp-kit: a tool named "${name}" is already registered. ` +
+      `webmcp-tools: a tool named "${name}" is already registered. ` +
         `Unregister it first or use a unique name.`,
     );
   }
@@ -311,7 +311,7 @@ export function tool<I extends ToolInput | undefined = undefined>(
   ready.catch((err) => {
     handle.unregister();
     console.error(
-      `webmcp-kit: host registration for tool "${name}" failed`,
+      `webmcp-tools: host registration for tool "${name}" failed`,
       err,
     );
   });

@@ -39,7 +39,7 @@ describe("tool() registration", () => {
     expect(descriptor.description).toBe("Add a product to the cart");
     expect(descriptor).not.toHaveProperty("execute");
 
-    // Derived JSON Schema from the Zod converter (webmcp-kit/zod side effect).
+    // Derived JSON Schema from the Zod converter (webmcp-tools/zod side effect).
     const schema = descriptor.inputSchema as {
       type: string;
       properties: Record<string, { type: string }>;
@@ -438,7 +438,7 @@ describe("configure missingHost", () => {
     expect(document.modelContext).toBeUndefined();
     expect(() =>
       tool("throw-tool", { description: "d", run: () => "ok" }),
-    ).toThrow(/document\.modelContext is not available/);
+    ).toThrow(/WebMCP .* is not available/);
     expect(getRegisteredTools()).toHaveLength(0);
   });
 });

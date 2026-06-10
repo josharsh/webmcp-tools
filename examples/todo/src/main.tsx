@@ -1,12 +1,12 @@
 // Enable Zod -> JSON Schema descriptor generation. Import once, anywhere.
-import "webmcp-kit/zod";
+import "webmcp-tools/zod";
 
 import React from "react";
 import { createRoot } from "react-dom/client";
 import {
   createWebMCPServer,
   PostMessageServerTransport,
-} from "@webmcp-kit/mcp-bridge";
+} from "@josharsh/webmcp-bridge";
 import App from "./App";
 import "./styles.css";
 
@@ -28,7 +28,7 @@ const ENABLE_MCP_BRIDGE: boolean = false;
 
 if (ENABLE_MCP_BRIDGE) {
   const bridge = createWebMCPServer({
-    name: "webmcp-kit-example-todo",
+    name: "webmcp-tools-example-todo",
     version: "0.1.0",
   });
   void bridge.connect(

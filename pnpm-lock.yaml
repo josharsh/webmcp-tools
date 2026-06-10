@@ -29,10 +29,10 @@ importers:
 
   examples/todo:
     dependencies:
-      '@webmcp-kit/mcp-bridge':
+      '@josharsh/webmcp-bridge':
         specifier: workspace:*
         version: link:../../packages/mcp-bridge
-      '@webmcp-kit/react':
+      '@josharsh/webmcp-react':
         specifier: workspace:*
         version: link:../../packages/react
       react:
@@ -41,7 +41,7 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
-      webmcp-kit:
+      webmcp-tools:
         specifier: workspace:*
         version: link:../../packages/core
       zod:
@@ -76,7 +76,7 @@ importers:
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
     devDependencies:
-      webmcp-kit:
+      webmcp-tools:
         specifier: workspace:*
         version: link:../core
 
@@ -94,13 +94,13 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
-      webmcp-kit:
+      webmcp-tools:
         specifier: workspace:*
         version: link:../core
 
   packages/svelte:
     devDependencies:
-      webmcp-kit:
+      webmcp-tools:
         specifier: workspace:*
         version: link:../core
 
@@ -112,7 +112,7 @@ importers:
       vue:
         specifier: ^3.5.13
         version: 3.5.35(typescript@5.9.3)
-      webmcp-kit:
+      webmcp-tools:
         specifier: workspace:*
         version: link:../core
 

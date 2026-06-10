@@ -8,5 +8,5 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  external: ["vue", "webmcp-kit"],
+  external: ["vue", "webmcp-tools"],
 });

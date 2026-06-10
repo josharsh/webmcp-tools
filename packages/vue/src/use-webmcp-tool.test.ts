@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, effectScope, h, nextTick, ref } from "vue";
 import { mount } from "@vue/test-utils";
-import { getRegisteredTool, getRegisteredTools } from "webmcp-kit";
+import { getRegisteredTool, getRegisteredTools } from "webmcp-tools";
 import {
   useRegisteredTools,
   useWebMCPForms,

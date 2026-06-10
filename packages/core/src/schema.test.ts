@@ -263,7 +263,7 @@ describe("resolveInputSchema", () => {
   it("throws a helpful error for standard schemas with no registered converter", () => {
     const schema = fakeStandardSchema("mystery-vendor");
     expect(() => resolveInputSchema("my-tool", schema, undefined)).toThrow(
-      /webmcp-kit\/zod/,
+      /webmcp-tools\/zod/,
     );
     expect(() => resolveInputSchema("my-tool", schema, undefined)).toThrow(
       /mystery-vendor/,

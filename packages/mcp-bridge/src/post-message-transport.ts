@@ -2,7 +2,7 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { JSONRPCMessageSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 
-export const DEFAULT_CHANNEL = "webmcp-kit-mcp";
+export const DEFAULT_CHANNEL = "webmcp-tools-mcp";
 
 /**
  * Which peer produced a message. Both peers can share a single window
@@ -121,7 +121,7 @@ export interface PostMessageServerTransportOptions {
    * pass `["*"]` explicitly (and knowingly) to accept any origin.
    */
   allowedOrigins: string[];
-  /** Envelope channel. Default: "webmcp-kit-mcp". */
+  /** Envelope channel. Default: "webmcp-tools-mcp". */
   channel?: string;
 }
 
@@ -213,7 +213,7 @@ export interface PostMessageClientTransportOptions {
   target: Window;
   /** Exact origin of the target window. Use "*" only for opaque origins. */
   targetOrigin: string;
-  /** Envelope channel. Must match the server's. Default: "webmcp-kit-mcp". */
+  /** Envelope channel. Must match the server's. Default: "webmcp-tools-mcp". */
   channel?: string;
 }
 

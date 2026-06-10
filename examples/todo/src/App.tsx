@@ -1,13 +1,13 @@
 import { useRef, useState } from "react";
 import { z } from "zod";
-import { useRegisteredTools, useWebMCPTool } from "@webmcp-kit/react";
+import { useRegisteredTools, useWebMCPTool } from "@josharsh/webmcp-react";
 import {
   errorResult,
   getModelContext,
   getRegisteredTool,
   hasNativeWebMCP,
   isPonyfill,
-} from "webmcp-kit";
+} from "webmcp-tools";
 
 interface Todo {
   id: number;
@@ -117,7 +117,7 @@ export default function App() {
       <header>
         <h1>Todos</h1>
         <p className="subtitle">
-          A webmcp-kit demo — every action below is also a WebMCP tool an AI
+          A webmcp-tools demo — every action below is also a WebMCP tool an AI
           agent can call. Host:{" "}
           <code>
             {hasNativeWebMCP() ? "native document.modelContext" : "ponyfill"}
@@ -161,7 +161,7 @@ export default function App() {
   );
 }
 
-/** Live view of every tool currently registered through webmcp-kit. */
+/** Live view of every tool currently registered through webmcp-tools. */
 function AgentToolsPanel() {
   const tools = useRegisteredTools();
   return (

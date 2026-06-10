@@ -14,8 +14,8 @@ import {
   getRegisteredTools,
   onRegistryChange,
   tool,
-} from "webmcp-kit";
-import type { RegisteredTool, ToolDefinition, ToolInput } from "webmcp-kit";
+} from "webmcp-tools";
+import type { RegisteredTool, ToolDefinition, ToolInput } from "webmcp-tools";
 
 /**
  * Register a WebMCP tool tied to the component lifecycle.
@@ -120,7 +120,7 @@ export function useWebMCPForms(
 }
 
 /**
- * Reactive list of all tools currently registered through webmcp-kit.
+ * Reactive list of all tools currently registered through webmcp-tools.
  * Updates on every register/unregister event.
  */
 export function useRegisteredTools(): ShallowRef<RegisteredTool[]> {
