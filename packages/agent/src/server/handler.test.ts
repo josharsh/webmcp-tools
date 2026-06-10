@@ -228,6 +228,97 @@ describe("origin policy", () => {
   });
 });
 
+describe("CORS (allowedOrigins array / any)", () => {
+  const ALLOWED = "https://app.example.com";
+
+  function preflight(origin: string): Request {
+    return new Request(ROUTE, {
+      method: "OPTIONS",
+      headers: {
+        origin,
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type, anthropic-version",
+      },
+    });
+  }
+
+  it("answers a preflight from an allowed origin with 204 + CORS headers", async () => {
+    const handler = makeHandler({ allowedOrigins: [ALLOWED] });
+    const response = await handler(preflight(ALLOWED));
+    expect(response.status).toBe(204);
+    expect(response.headers.get("access-control-allow-origin")).toBe(ALLOWED);
+    expect(response.headers.get("access-control-allow-methods")).toBe("POST");
+    // Exactly what proxy() sends from the browser — never x-api-key.
+    expect(response.headers.get("access-control-allow-headers")).toBe(
+      "content-type, anthropic-version",
+    );
+    expect(response.headers.get("access-control-max-age")).toBe("86400");
+    expect(response.headers.get("vary")).toBe("Origin");
+  });
+
+  it("never reflects a disallowed origin on preflight", async () => {
+    const handler = makeHandler({ allowedOrigins: [ALLOWED] });
+    const response = await handler(preflight("https://evil.example"));
+    expect(response.status).toBe(403);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("POST responses (SSE) carry ACAO + Vary for an allowed origin", async () => {
+    stubUpstream(() => sseUpstream());
+    const handler = makeHandler({ allowedOrigins: [ALLOWED] });
+    const response = await handler(
+      jsonRequest(VALID_BODY, { origin: ALLOWED }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/event-stream");
+    expect(response.headers.get("access-control-allow-origin")).toBe(ALLOWED);
+    expect(response.headers.get("vary")).toBe("Origin");
+  });
+
+  it("error responses carry ACAO too (model mismatch from an allowed origin)", async () => {
+    stubUpstream(() => sseUpstream());
+    const handler = makeHandler({ allowedOrigins: [ALLOWED] });
+    const response = await handler(
+      jsonRequest({ ...VALID_BODY, model: "other-model" }, { origin: ALLOWED }),
+    );
+    expect(response.status).toBe(400);
+    expect(response.headers.get("access-control-allow-origin")).toBe(ALLOWED);
+    expect(response.headers.get("vary")).toBe("Origin");
+  });
+
+  it("POST from a disallowed origin gets no ACAO (403)", async () => {
+    const handler = makeHandler({ allowedOrigins: [ALLOWED] });
+    const response = await handler(
+      jsonRequest(VALID_BODY, { origin: "https://evil.example" }),
+    );
+    expect(response.status).toBe(403);
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it('"any" echoes the validated request origin, never "*"', async () => {
+    stubUpstream(() => sseUpstream());
+    const handler = makeHandler({ allowedOrigins: "any" });
+    const response = await handler(
+      jsonRequest(VALID_BODY, { origin: "https://whatever.example" }),
+    );
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "https://whatever.example",
+    );
+  });
+
+  it("same-origin default is unchanged: OPTIONS → 405, no CORS headers", async () => {
+    stubUpstream(() => sseUpstream());
+    const handler = makeHandler();
+    const pre = await handler(preflight(SELF));
+    expect(pre.status).toBe(405);
+    expect(pre.headers.get("access-control-allow-origin")).toBeNull();
+    const post = await handler(jsonRequest(VALID_BODY));
+    expect(post.status).toBe(200);
+    expect(post.headers.get("access-control-allow-origin")).toBeNull();
+    expect(post.headers.get("vary")).toBeNull();
+  });
+});
+
 describe("request validation", () => {
   it("rejects non-POST with 405", async () => {
     const handler = makeHandler();
@@ -266,6 +357,34 @@ describe("request validation", () => {
       jsonRequest(VALID_BODY, { headers: { "content-length": "9999999" } }),
     );
     expect(response.status).toBe(413);
+  });
+
+  it("rejects an over-limit chunked body (no Content-Length) with 413 without buffering it", async () => {
+    const upstream = stubUpstream(() => sseUpstream());
+    const handler = makeHandler({ maxBodyBytes: 64 });
+    let pulls = 0;
+    const chunk = new TextEncoder().encode("x".repeat(32));
+    // Endless chunked body: buffering it all (the old arrayBuffer() path)
+    // would never return — the cap must trip while reading.
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const request = new Request(ROUTE, {
+      method: "POST",
+      headers: { origin: SELF, "content-type": "application/json" },
+      body,
+      duplex: "half",
+    } as RequestInit);
+    expect(request.headers.get("content-length")).toBeNull();
+
+    const response = await handler(request);
+    expect(response.status).toBe(413);
+    // Stopped at the first over-limit chunk — not after buffering many.
+    expect(pulls).toBeLessThan(10);
+    expect(upstream).not.toHaveBeenCalled();
   });
 
   it("rejects malformed JSON with 400", async () => {
@@ -408,9 +527,13 @@ describe("toNodeHandler", () => {
     url?: string;
     headers?: Record<string, string>;
     body?: string;
-  }): IncomingMessage {
-    const chunks = opts.body ? [new TextEncoder().encode(opts.body)] : [];
-    return {
+    chunks?: Uint8Array[];
+    onYield?: () => void;
+  }): IncomingMessage & { destroyed: boolean } {
+    const chunks =
+      opts.chunks ?? (opts.body ? [new TextEncoder().encode(opts.body)] : []);
+    const req = {
+      destroyed: false,
       method: opts.method ?? "POST",
       url: opts.url ?? "/api/agent",
       headers: {
@@ -418,10 +541,17 @@ describe("toNodeHandler", () => {
         ...opts.headers,
       },
       socket: {},
-      async *[Symbol.asyncIterator]() {
-        for (const chunk of chunks) yield chunk;
+      destroy() {
+        req.destroyed = true;
       },
-    } as unknown as IncomingMessage;
+      async *[Symbol.asyncIterator]() {
+        for (const chunk of chunks) {
+          opts.onYield?.();
+          yield chunk;
+        }
+      },
+    };
+    return req as unknown as IncomingMessage & { destroyed: boolean };
   }
 
   function fakeRes() {
@@ -521,6 +651,75 @@ describe("toNodeHandler", () => {
       res,
     );
     expect(state.statusCode).toBe(200);
+  });
+
+  it("enforces the body cap while reading: 413, stream destroyed, handler never runs", async () => {
+    const wrapped = vi.fn(makeHandler());
+    const node = toNodeHandler(wrapped, { maxBodyBytes: 64 });
+    let yielded = 0;
+    const req = fakeReq({
+      headers: { origin: SELF, "content-type": "application/json" },
+      // 100 × 32-byte chunks: the cap (64) trips on the 3rd chunk.
+      chunks: Array.from({ length: 100 }, () =>
+        new TextEncoder().encode("y".repeat(32)),
+      ),
+      onYield: () => {
+        yielded += 1;
+      },
+    });
+    const { res, state, bodyText } = fakeRes();
+    await node(req, res);
+
+    expect(state.statusCode).toBe(413);
+    expect(bodyText()).toContain("payload_too_large");
+    expect(req.destroyed).toBe(true);
+    expect(yielded).toBeLessThan(10); // stopped reading, not buffered to the end
+    expect(wrapped).not.toHaveBeenCalled();
+  });
+
+  it("honors res.write backpressure: awaits 'drain' when write returns false", async () => {
+    stubUpstream(() => sseUpstream()); // two SSE chunks
+    const node = toNodeHandler(makeHandler());
+    const order: string[] = [];
+    let drainCallback: (() => void) | null = null;
+    let writes = 0;
+    const res = {
+      statusCode: 0,
+      headersSent: false,
+      setHeader() {},
+      write() {
+        writes += 1;
+        order.push(`write${writes}`);
+        return writes !== 1; // first write reports a full buffer
+      },
+      once(event: string, cb: () => void) {
+        expect(event).toBe("drain");
+        order.push("wait-drain");
+        drainCallback = cb;
+      },
+      end() {
+        order.push("end");
+      },
+    } as unknown as ServerResponse;
+
+    const pending = node(
+      fakeReq({
+        headers: { origin: SELF, "content-type": "application/json" },
+        body: JSON.stringify(VALID_BODY),
+      }),
+      res,
+    );
+
+    // The adapter must pause on the stalled write — chunk 2 not written yet.
+    await vi.waitFor(() => {
+      expect(drainCallback).not.toBeNull();
+    });
+    expect(order).toEqual(["write1", "wait-drain"]);
+
+    order.push("drain");
+    drainCallback!();
+    await pending;
+    expect(order).toEqual(["write1", "wait-drain", "drain", "write2", "end"]);
   });
 
   it("answers 500 when the wrapped handler itself throws", async () => {

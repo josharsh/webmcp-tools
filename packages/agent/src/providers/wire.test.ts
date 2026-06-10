@@ -253,6 +253,59 @@ describe("Anthropic SSE wire parser", () => {
     });
   });
 
+  it("drops a partial tool input and yields done when max_tokens cut the stream", async () => {
+    const text =
+      sse("message_start", { type: "message_start", message: {} }) +
+      sse("content_block_start", {
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "tool_use", id: "tu_9", name: "add-to-cart" },
+      }) +
+      sse("content_block_delta", {
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "input_json_delta", partial_json: '{"sku":"a-1","q' },
+      }) +
+      sse("content_block_stop", { type: "content_block_stop", index: 0 }) +
+      sse("message_delta", {
+        type: "message_delta",
+        delta: { stop_reason: "max_tokens" },
+      }) +
+      sse("message_stop", { type: "message_stop" });
+    mockFetchStream(chunkBytes(text, 1024));
+    const provider = proxy({ url: "https://upstream.test" });
+    const events = await collect(provider.chat(makeRequest()));
+
+    // No throw, no tool-call for the truncated block — just a clean done.
+    expect(events).toEqual([{ type: "done", stopReason: "max-tokens" }]);
+  });
+
+  it("still throws on unparseable tool input when the message completed normally", async () => {
+    const text =
+      sse("message_start", { type: "message_start", message: {} }) +
+      sse("content_block_start", {
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "tool_use", id: "tu_9", name: "add-to-cart" },
+      }) +
+      sse("content_block_delta", {
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "input_json_delta", partial_json: '{"sku":"a-1","q' },
+      }) +
+      sse("content_block_stop", { type: "content_block_stop", index: 0 }) +
+      sse("message_delta", {
+        type: "message_delta",
+        delta: { stop_reason: "tool_use" },
+      }) +
+      sse("message_stop", { type: "message_stop" });
+    mockFetchStream(chunkBytes(text, 1024));
+    const provider = proxy({ url: "https://upstream.test" });
+    await expect(collect(provider.chat(makeRequest()))).rejects.toThrow(
+      /unparseable tool input/,
+    );
+  });
+
   it("throws ProviderError on malformed data JSON", async () => {
     const text =
       sse("message_start", { type: "message_start", message: {} }) +

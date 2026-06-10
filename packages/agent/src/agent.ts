@@ -81,6 +81,7 @@ export function createAgent(options: AgentOptions): Agent {
   // Taint guard cannot be disabled for the on-device builtin() provider.
   const taintGuard =
     provider.id === "builtin" ? true : (options.taintGuard ?? true);
+  const untrustedByDefault = options.untrustedByDefault ?? false;
   const onApproval = options.onApproval ?? defaultApproval;
   const system = buildSystemPrompt(options.instructions);
 
@@ -194,6 +195,7 @@ export function createAgent(options: AgentOptions): Agent {
       let turnText = "";
       const calls: Array<{ id: string; name: string; input: Json }> = [];
       let providerError: unknown = null;
+      let stopReason: "end-turn" | "tool-use" | "max-tokens" | null = null;
 
       try {
         for await (const ev of provider.chat({
@@ -214,6 +216,7 @@ export function createAgent(options: AgentOptions): Agent {
           } else if (ev.type === "tool-call") {
             calls.push({ id: ev.id, name: ev.name, input: ev.input });
           } else if (ev.type === "done") {
+            stopReason = ev.stopReason;
             if (ev.usage) {
               cumulative.inputTokens += ev.usage.inputTokens;
               cumulative.outputTokens += ev.usage.outputTokens;
@@ -273,12 +276,33 @@ export function createAgent(options: AgentOptions): Agent {
       emit({ type: "assistant-message", text: turnText });
 
       if (signal.aborted) {
+        // The assistant turn (with tool_use blocks) is already in `chat` — a
+        // later send() would 400 on Anthropic ("tool_use ids without
+        // tool_result") unless every pending call is answered now.
+        if (calls.length > 0) {
+          pushChat(gen, {
+            role: "user",
+            content: calls.map((call) => ({
+              type: "tool_result" as const,
+              toolUseId: call.id,
+              content: "Aborted by user before this tool ran.",
+              isError: true,
+            })),
+          });
+        }
         const msg = notice("Stopped.");
         finish("aborted");
         return msg;
       }
 
       if (calls.length === 0) {
+        if (stopReason === "max-tokens") {
+          // The provider hit the token limit mid-response (possibly dropping
+          // a partial tool call) — surface that instead of ending silently.
+          const msg = notice("Response was cut off at the token limit.");
+          finish("end-turn");
+          return msg;
+        }
         finish("end-turn");
         return assistant;
       }
@@ -331,8 +355,12 @@ export function createAgent(options: AgentOptions): Agent {
 
         const descriptor = tools.find((t) => t.name === call.name);
         const readOnly = descriptor?.annotations?.readOnlyHint === true;
+        // untrustedByDefault: tools that don't explicitly declare
+        // untrustedContentHint: false are treated as untrusted.
+        const untrustedHint = descriptor?.annotations?.untrustedContentHint;
         const untrusted =
-          descriptor?.annotations?.untrustedContentHint === true;
+          untrustedHint === true ||
+          (untrustedByDefault && untrustedHint !== false);
 
         const part: ToolCallPart = {
           type: "tool-call",
@@ -534,14 +562,14 @@ export function createAgent(options: AgentOptions): Agent {
       const controller = new AbortController();
       abortController = controller;
       const callerSignal = opts?.signal;
+      let onCallerAbort: (() => void) | null = null;
       if (callerSignal) {
         if (callerSignal.aborted) controller.abort(callerSignal.reason);
         else {
-          callerSignal.addEventListener(
-            "abort",
-            () => controller.abort(callerSignal.reason),
-            { once: true },
-          );
+          onCallerAbort = () => controller.abort(callerSignal.reason);
+          callerSignal.addEventListener("abort", onCallerAbort, {
+            once: true,
+          });
         }
       }
 
@@ -558,6 +586,11 @@ export function createAgent(options: AgentOptions): Agent {
       } finally {
         running = false;
         abortController = null;
+        // Don't leak the abort listener when the caller reuses one signal
+        // across many sends.
+        if (callerSignal && onCallerAbort !== null) {
+          callerSignal.removeEventListener("abort", onCallerAbort);
+        }
       }
     },
 

@@ -12,6 +12,18 @@ function stripTrailingSlash(url: string): string {
 }
 
 /**
+ * True in any context where the API key would be exposed to page script:
+ * a window (DOM) or a Web/Service Worker. Workers have no `window` but do
+ * have a global `importScripts` function — a key in a worker is just as
+ * readable from devtools as one in a window.
+ */
+function isBrowserLikeContext(): boolean {
+  const g = globalThis as { window?: unknown; importScripts?: unknown };
+  if (typeof g.window !== "undefined") return true;
+  return typeof g.importScripts === "function";
+}
+
+/**
  * Direct Anthropic Messages API provider (raw fetch, streaming SSE — no SDK
  * dependency). Browser use with an apiKey THROWS unless
  * `dangerouslyAllowBrowser` is set, and warns once even with it: keys in
@@ -23,7 +35,7 @@ export function anthropic(opts: AnthropicOptions = {}): AgentProvider {
   const baseURL = stripTrailingSlash(opts.baseURL ?? DEFAULT_BASE_URL);
   const model = opts.model ?? DEFAULT_MODEL;
 
-  if (typeof window !== "undefined" && apiKey) {
+  if (isBrowserLikeContext() && apiKey) {
     if (!opts.dangerouslyAllowBrowser) {
       throw new Error(
         "@josharsh/webmcp-agent: anthropic() received an apiKey in a browser. " +

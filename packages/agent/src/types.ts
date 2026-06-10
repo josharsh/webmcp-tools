@@ -149,6 +149,14 @@ export interface AgentOptions {
   /** Default true; forced true for builtin(). */
   taintGuard?: boolean;
   /**
+   * Default false. When true, every tool that does NOT explicitly declare
+   * `annotations.untrustedContentHint: false` is treated as untrusted: its
+   * results are nonce-wrapped and taint the conversation (mutating calls
+   * then require onApproval). Recommended for pages whose tools return
+   * third-party content but don't annotate it.
+   */
+  untrustedByDefault?: boolean;
+  /**
    * Taint-guard approval. Default: window.confirm in DOM, auto-DENY headless.
    */
   onApproval?: (req: {

@@ -302,6 +302,179 @@ describe("agent loop mechanics (scripted provider, real tools)", () => {
     expect(agent.getState().status).toBe("idle");
   });
 
+  it("answers dangling tool_use when aborted between stream end and tool loop", async () => {
+    let toolRan = false;
+    register("never-runs", {
+      run: () => {
+        toolRan = true;
+        return "should not run";
+      },
+    });
+    const agentRef: { current: ReturnType<typeof createAgent> | null } = {
+      current: null,
+    };
+    const requests: CapturedRequest[] = [];
+    let turn = 0;
+    // Aborts in its FINAL event: the stream completes, the assistant turn
+    // (with the tool_use block) is pushed to the conversation, and only THEN
+    // does the loop see the aborted signal — before any tool executes.
+    const provider: AgentProvider = {
+      id: "abort-race",
+      label: "Abort race",
+      kind: "scripted",
+      async *chat(request) {
+        requests.push(
+          JSON.parse(
+            JSON.stringify({
+              system: request.system,
+              tools: request.tools,
+              messages: request.messages,
+            }),
+          ) as CapturedRequest,
+        );
+        turn += 1;
+        if (turn === 1) {
+          yield call("c1", "never-runs", {});
+          agentRef.current!.abort();
+          yield doneTool;
+        } else {
+          yield { type: "text-delta", text: "second turn" } as ProviderEvent;
+          yield doneEnd;
+        }
+      },
+    };
+    const agent = createAgent({ provider });
+    agentRef.current = agent;
+
+    const first = await agent.send("go");
+    expect(toolRan).toBe(false);
+    expect(first.role).toBe("system-notice");
+
+    // The follow-up send must hand the provider a conversation where every
+    // tool_use is answered (Anthropic 400s otherwise) — and must not throw.
+    const second = await agent.send("again");
+    expect(second.role).toBe("assistant");
+    const history = requests.at(-1)!.messages;
+    const toolUseIds = history.flatMap((m) =>
+      m.content.filter((c) => c.type === "tool_use").map((c) => c.id),
+    );
+    const toolResults = history.flatMap((m) =>
+      m.content.filter((c) => c.type === "tool_result"),
+    );
+    expect(toolUseIds).toEqual(["c1"]);
+    expect(toolResults).toHaveLength(1);
+    expect(toolResults[0]).toMatchObject({
+      toolUseId: "c1",
+      content: "Aborted by user before this tool ran.",
+      isError: true,
+    });
+  });
+
+  it("removes the caller abort listener when the turn completes (no leak)", async () => {
+    const { provider } = fakeProvider([
+      [{ type: "text-delta", text: "ok" }, doneEnd],
+    ]);
+    const agent = createAgent({ provider });
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const added = vi.spyOn(signal, "addEventListener");
+    const removed = vi.spyOn(signal, "removeEventListener");
+
+    await agent.send("one", { signal });
+    await agent.send("two", { signal });
+    await agent.send("three", { signal });
+
+    // Every listener added for a turn is removed when the turn finishes —
+    // reusing one signal across sends must not accumulate listeners.
+    expect(added).toHaveBeenCalledTimes(3);
+    expect(removed).toHaveBeenCalledTimes(3);
+    for (let i = 0; i < 3; i++) {
+      expect(removed.mock.calls[i]![1]).toBe(added.mock.calls[i]![1]);
+    }
+  });
+
+  it("untrustedByDefault wraps annotation-less tool results and taints the turn", async () => {
+    register("plain-fetch", { run: () => "third-party review text" });
+    let mutated = false;
+    register("writer", {
+      run: () => {
+        mutated = true;
+        return "wrote";
+      },
+    });
+    const onApproval = vi.fn().mockResolvedValue(false);
+    const { provider, requests } = fakeProvider([
+      [call("c1", "plain-fetch", {}), doneTool],
+      [call("c2", "writer", {}), doneTool],
+      [{ type: "text-delta", text: "done" }, doneEnd],
+    ]);
+    const agent = createAgent({
+      provider,
+      onApproval,
+      untrustedByDefault: true,
+    });
+    await agent.send("fetch then write");
+
+    // The annotation-less tool's result is nonce-wrapped...
+    const content = String(requests[1]!.messages.at(-1)!.content[0]!.content);
+    expect(content).toContain("UNTRUSTED page/user content");
+    expect(content).toMatch(/\[UNTRUSTED CONTENT boundary-[0-9a-f]{32}\]/);
+    // ...and tainted the conversation: the next mutating call hit the gate.
+    expect(onApproval).toHaveBeenCalledTimes(1);
+    expect(mutated).toBe(false);
+  });
+
+  it("untrustedByDefault: explicit untrustedContentHint false stays trusted", async () => {
+    register("vetted", {
+      untrustedContent: false,
+      run: () => "first-party data",
+    });
+    let mutated = false;
+    register("writer", {
+      run: () => {
+        mutated = true;
+        return "wrote";
+      },
+    });
+    const onApproval = vi.fn().mockResolvedValue(false);
+    const { provider, requests } = fakeProvider([
+      [call("c1", "vetted", {}), doneTool],
+      [call("c2", "writer", {}), doneTool],
+      [{ type: "text-delta", text: "done" }, doneEnd],
+    ]);
+    const agent = createAgent({
+      provider,
+      onApproval,
+      untrustedByDefault: true,
+    });
+    await agent.send("read then write");
+
+    // Explicit false: no wrapping, no taint — the mutating call ran ungated.
+    const content = String(requests[1]!.messages.at(-1)!.content[0]!.content);
+    expect(content).toBe("first-party data");
+    expect(onApproval).not.toHaveBeenCalled();
+    expect(mutated).toBe(true);
+  });
+
+  it("notices when max_tokens cuts the response off with no tool calls", async () => {
+    const { provider } = fakeProvider([
+      [
+        { type: "text-delta", text: "I was about to say" },
+        { type: "done", stopReason: "max-tokens" },
+      ],
+    ]);
+    const agent = createAgent({ provider });
+    const events = recordEvents(agent);
+    const reply = await agent.send("hi");
+
+    expect(reply.role).toBe("system-notice");
+    expect((reply.parts[0] as { text: string }).text).toContain(
+      "cut off at the token limit",
+    );
+    expect(events.at(-1)).toEqual({ type: "done", reason: "end-turn" });
+    expect(agent.getState().status).toBe("idle");
+  });
+
   it("throws on send-while-running", async () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((r) => (release = r));

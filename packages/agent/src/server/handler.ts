@@ -20,9 +20,18 @@ export interface AgentHandlerOptions {
   /**
    * Default "same-origin" (Origin header must match the request URL origin).
    * Missing or mismatched Origin → 403. "any" must be typed explicitly.
+   * With an array or "any", the handler also speaks CORS for allowed
+   * origins: OPTIONS preflights → 204 with Access-Control-* headers, and
+   * every response (SSE and errors included) carries
+   * Access-Control-Allow-Origin (the validated origin, never a reflection)
+   * + Vary: Origin. The same-origin default sends no CORS headers and
+   * answers OPTIONS with 405.
    */
   allowedOrigins?: "same-origin" | string[] | "any";
-  /** Default 1_048_576 (1 MiB). Larger request bodies → 413. */
+  /**
+   * Default 1_048_576 (1 MiB). Enforced while the body is read, so chunked
+   * bodies without a Content-Length are bounded too → 413.
+   */
   maxBodyBytes?: number;
   /** Server-side clamp of max_tokens. Default 4096. */
   maxTokens?: number;
@@ -41,6 +50,14 @@ const DEFAULT_BASE_URL = "https://api.anthropic.com";
 const DEFAULT_MAX_BODY_BYTES = 1_048_576;
 const DEFAULT_MAX_TOKENS = 4096;
 const ANTHROPIC_VERSION = "2023-06-01";
+
+/**
+ * Exactly the headers the browser client sends: proxy() (src/providers/
+ * wire.ts) sets content-type + anthropic-version and nothing else — it never
+ * sends x-api-key (the server holds the key), so x-api-key is NOT allowed.
+ */
+const CORS_ALLOW_HEADERS = "content-type, anthropic-version";
+const CORS_MAX_AGE = "86400";
 
 /** Response headers that must not be forwarded verbatim: the runtime
  * re-frames the body, so upstream encoding/length headers would be wrong. */
@@ -120,11 +137,47 @@ export function createAgentHandler(
   const allowedOrigins = opts.allowedOrigins ?? "same-origin";
   const maxBodyBytes = opts.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
   const maxTokens = opts.maxTokens ?? DEFAULT_MAX_TOKENS;
+  // CORS only applies to the explicit cross-origin modes; the same-origin
+  // default keeps the original behavior (no CORS headers, OPTIONS → 405).
+  const corsEnabled = allowedOrigins !== "same-origin";
 
-  return async function handler(request: Request): Promise<Response> {
+  /** The validated origin to echo in CORS headers, or null (no CORS). */
+  const corsOrigin = (request: Request): string | null => {
+    if (!corsEnabled) return null;
+    const origin = request.headers.get("origin");
+    if (!origin) return null;
+    if (allowedOrigins === "any") return origin;
+    return allowedOrigins.some(
+      (allowed) => stripTrailingSlash(allowed) === origin,
+    )
+      ? origin
+      : null;
+  };
+
+  const inner = async (request: Request): Promise<Response> => {
     if (opts.onRequest) {
       const short = await opts.onRequest(request);
       if (short instanceof Response) return short;
+    }
+
+    if (corsEnabled && request.method === "OPTIONS") {
+      // Preflight. Allow-Origin + Vary are added by the outer wrapper for
+      // every response from a validated origin (this one included).
+      if (corsOrigin(request) === null) {
+        return errorResponse(
+          403,
+          "origin_forbidden",
+          "Request origin is not allowed.",
+        );
+      }
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-methods": "POST",
+          "access-control-allow-headers": CORS_ALLOW_HEADERS,
+          "access-control-max-age": CORS_MAX_AGE,
+        },
+      });
     }
 
     if (request.method !== "POST") {
@@ -166,22 +219,49 @@ export function createAgentHandler(
       );
     }
 
-    let raw: ArrayBuffer;
-    try {
-      raw = await request.arrayBuffer();
-    } catch {
-      return errorResponse(
-        400,
-        "invalid_request",
-        "Could not read the request body.",
-      );
-    }
-    if (raw.byteLength > maxBodyBytes) {
-      return errorResponse(
-        413,
-        "payload_too_large",
-        `Request body exceeds ${maxBodyBytes} bytes.`,
-      );
+    // Read the body incrementally and stop the moment it exceeds the cap —
+    // chunked bodies carry no Content-Length, so the header check above
+    // can't bound them, and buffering first (arrayBuffer()) would let an
+    // attacker exhaust memory before any size check ran.
+    let raw: Uint8Array;
+    if (request.body === null) {
+      raw = new Uint8Array(0);
+    } else {
+      const reader = request.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value.byteLength;
+          if (total > maxBodyBytes) {
+            try {
+              await reader.cancel();
+            } catch {
+              // stream already closed/errored
+            }
+            return errorResponse(
+              413,
+              "payload_too_large",
+              `Request body exceeds ${maxBodyBytes} bytes.`,
+            );
+          }
+          chunks.push(value);
+        }
+      } catch {
+        return errorResponse(
+          400,
+          "invalid_request",
+          "Could not read the request body.",
+        );
+      }
+      raw = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        raw.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
     }
 
     let body: Record<string, unknown>;
@@ -253,6 +333,19 @@ export function createAgentHandler(
       headers,
     });
   };
+
+  return async function handler(request: Request): Promise<Response> {
+    const response = await inner(request);
+    // CORS modes: every response for a VALIDATED origin (preflight, SSE,
+    // errors) carries Allow-Origin + Vary. Never reflect an unvalidated
+    // Origin; same-origin mode adds nothing.
+    const origin = corsOrigin(request);
+    if (origin !== null) {
+      response.headers.set("access-control-allow-origin", origin);
+      response.headers.append("vary", "Origin");
+    }
+    return response;
+  };
 }
 
 /**
@@ -280,7 +373,9 @@ export function nextAppRoute(
  */
 export function toNodeHandler(
   handler: (request: Request) => Promise<Response>,
+  options: { maxBodyBytes?: number } = {},
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
+  const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
   return async function nodeHandler(req, res): Promise<void> {
     try {
       const chunks: Uint8Array[] = [];
@@ -288,8 +383,25 @@ export function toNodeHandler(
       for await (const chunk of req) {
         const bytes =
           typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
-        chunks.push(bytes);
         total += bytes.byteLength;
+        if (total > maxBodyBytes) {
+          // Stop buffering immediately: respond 413 and tear the request
+          // stream down (the wrapped handler never runs).
+          res.statusCode = 413;
+          res.setHeader("content-type", "application/json");
+          res.end(
+            JSON.stringify({
+              type: "error",
+              error: {
+                type: "payload_too_large",
+                message: `Request body exceeds ${maxBodyBytes} bytes.`,
+              },
+            }),
+          );
+          req.destroy();
+          return;
+        }
+        chunks.push(bytes);
       }
       const body = new Uint8Array(total);
       let offset = 0;
@@ -331,7 +443,11 @@ export function toNodeHandler(
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
-          res.write(value);
+          // Backpressure: write() returning false means the socket buffer is
+          // full — wait for 'drain' before pulling the next chunk.
+          if (!res.write(value)) {
+            await new Promise<void>((resolve) => res.once("drain", resolve));
+          }
         }
       }
       res.end();

@@ -158,6 +158,12 @@ export async function* streamMessages(
   let sawUsage = false;
   let stopReason: string | null = null;
   let sawMessageStop = false;
+  // Unparseable tool input is only fatal when the message completed normally.
+  // When max_tokens truncates the stream mid input_json_delta, the partial
+  // call is dropped and the consumer still gets done(stopReason:
+  // "max-tokens") — stop_reason arrives AFTER content_block_stop, so the
+  // error must be deferred, not thrown at parse time.
+  let toolInputError: ProviderError | null = null;
 
   const pendingEvents: ProviderEvent[] = [];
 
@@ -233,10 +239,13 @@ export async function* streamMessages(
             try {
               input = JSON.parse(block.json) as Json;
             } catch (err) {
-              throw new ProviderError(
+              // Deferred: thrown after the stream ends UNLESS stop_reason
+              // turns out to be max_tokens (truncated input — drop the call).
+              toolInputError = new ProviderError(
                 `Anthropic stream sent unparseable tool input for "${block.name}"`,
                 { cause: err },
               );
+              return;
             }
           }
           pendingEvents.push({
@@ -325,9 +334,13 @@ export async function* streamMessages(
         "Anthropic stream ended before the message completed",
       );
     }
+    const mappedStopReason = mapStopReason(stopReason);
+    if (toolInputError !== null && mappedStopReason !== "max-tokens") {
+      throw toolInputError;
+    }
     yield {
       type: "done",
-      stopReason: mapStopReason(stopReason),
+      stopReason: mappedStopReason,
       ...(sawUsage ? { usage: { inputTokens, outputTokens } } : {}),
     };
   } finally {

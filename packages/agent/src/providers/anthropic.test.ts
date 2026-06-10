@@ -84,6 +84,30 @@ describe("anthropic() browser safety", () => {
   it("does not throw without an apiKey (proxy-style usage)", () => {
     expect(() => anthropic()).not.toThrow();
   });
+
+  it("THROWS in a worker-like context (importScripts, no window) with an apiKey", () => {
+    // Web/Service Workers have no `window` but expose a global importScripts
+    // — a key there is exactly as exposed as in a window.
+    vi.stubGlobal("window", undefined);
+    vi.stubGlobal("importScripts", () => {});
+    expect(() => anthropic({ apiKey: "sk-ant-test" })).toThrow(
+      /dangerouslyAllowBrowser/,
+    );
+  });
+
+  it("allows a worker-like context with dangerouslyAllowBrowser", () => {
+    vi.stubGlobal("window", undefined);
+    vi.stubGlobal("importScripts", () => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() =>
+      anthropic({ apiKey: "sk-ant-test", dangerouslyAllowBrowser: true }),
+    ).not.toThrow();
+  });
+
+  it("does not throw server-side (no window, no importScripts) with an apiKey", () => {
+    vi.stubGlobal("window", undefined);
+    expect(() => anthropic({ apiKey: "sk-ant-test" })).not.toThrow();
+  });
 });
 
 describe("anthropic() wire headers and body", () => {

@@ -28,6 +28,7 @@ in tarball) / prettier check.
 
 COMMITTED: ee6d547 (review fixes), df28daa (adapters/bridge/tests/example),
 ccf29b5 (core). Working tree clean. PUBLISHED 2026-06-10:
+
 - npm: webmcp-tools@0.1.0, @josharsh/webmcp-{react,vue,svelte,bridge}@0.1.0
   (name webmcp-kit was taken by victorhuangwq's active package — narrower
   scope than ours: no framework adapters, no MCP bridge, no declarative forms)
@@ -63,9 +64,39 @@ Fixes applied in ee6d547:
   querySelectorAll/mutation targets, so element-keyed Maps break there.
 - Docs: root README + bridge README synced; core README created.
 
+## Security review fixes — packages/agent (2026-06-11)
+
+All 10 verified security-review findings fixed, full gate green
+(build / typecheck / vitest 306 tests 0 skipped / attw all green / prettier):
+
+- agent.ts: abort race after stream end now pushes synthetic tool_results
+  for dangling tool_use (no more Anthropic 400 on next send);
+  `untrustedByDefault` AgentOption (tools without explicit
+  untrustedContentHint:false get wrapped + taint); caller AbortSignal
+  listener removed in send() finally; max-tokens with no calls → notice
+  "Response was cut off at the token limit."
+- server/handler.ts: maxBodyBytes enforced WHILE reading (chunked bodies
+  bounded, 413 early); toNodeHandler takes { maxBodyBytes } and destroys
+  oversized requests; CORS implemented for allowedOrigins array/"any"
+  (preflight 204, ACAO = validated origin echo, Vary: Origin on all
+  responses incl. SSE/errors; same-origin default unchanged, OPTIONS 405);
+  toNodeHandler honors res.write() backpressure (awaits 'drain').
+- providers/wire.ts: unparseable tool input deferred — dropped (not thrown)
+  when stop_reason is max_tokens; still throws otherwise.
+- providers/anthropic.ts: browser detection also catches Web/Service
+  Workers (globalThis.importScripts heuristic).
+- DESIGN.md: tools-changed event, ProviderToolDescriptor.title,
+  nextAppRoute/toNodeHandler + CORS/body-cap behavior, untrustedByDefault.
+- README.md: untrustedContentHint-keyed defenses + untrustedByDefault
+  recommendation; CORS + body-limit docs for createAgentHandler.
+
+NOTE: node_modules vanished mid-session; reran pnpm install (lockfile
+unchanged). Agent package NOT yet published (0.1.0 unreleased).
+
 ## Next
 
-1. Commit everything (big batch sitting in working tree).
+1. Commit everything (big batch sitting in working tree — includes all
+   security fixes above; repo dir currently shows as non-git here, verify).
 2. Publish decision is Harsh's (npm org name, GitHub repo creation).
 
 ## Notes

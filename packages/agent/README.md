@@ -96,6 +96,7 @@ const reply = await agent.send("add 2 of sku-123 to my cart");
 | `maxTokens`                | `4096`                                      | `max_tokens` per model call                                                                     |
 | `allowTools` / `denyTools` | all / none                                  | Filtered at discovery AND execution; deny wins                                                  |
 | `taintGuard`               | `true`                                      | See [Security](#security-model-hardened-human-in-the-loop--not-safe); forced on for `builtin()` |
+| `untrustedByDefault`       | `false`                                     | Treat tools without an explicit `untrustedContentHint: false` as untrusted (wrap + taint)       |
 | `onApproval`               | `window.confirm` in DOM, auto-deny headless | Taint-guard approval callback                                                                   |
 | `onUsage`                  | —                                           | Per-call + cumulative token usage                                                               |
 | `toolSource`               | `pageToolSource()`                          | Where tools come from (`document.modelContext`)                                                 |
@@ -219,6 +220,27 @@ const handler = createAgentHandler({
 });
 ```
 
+**Body limits.** `maxBodyBytes` (default 1 MiB) is enforced _while_ the body
+is read, not after: the handler rejects with 413 the moment the accumulated
+bytes exceed the cap, so chunked requests without a `Content-Length` header
+can't buffer unbounded memory. A `Content-Length` that already declares an
+oversized body is rejected before reading at all. `toNodeHandler` applies the
+same cap to the raw Node request stream (configurable via its second
+argument: `toNodeHandler(handler, { maxBodyBytes })`) and destroys the
+request when exceeded.
+
+**CORS.** The `same-origin` default sends no CORS headers and answers
+`OPTIONS` with 405 — the route is only reachable from your own pages. When
+you set `allowedOrigins` to an array or `"any"`, the handler speaks CORS for
+allowed origins: `OPTIONS` preflights get a 204 with
+`Access-Control-Allow-Methods: POST`, `Access-Control-Allow-Headers:
+content-type, anthropic-version` (exactly the headers `proxy()` sends — the
+browser client never sends `x-api-key`), and `Access-Control-Max-Age`; every
+response — the SSE stream and error responses included — carries
+`Access-Control-Allow-Origin` set to the validated request origin (never a
+blind reflection, never `*`) plus `Vary: Origin`. Disallowed origins get no
+CORS headers at all.
+
 **Next.js (App Router):**
 
 ```ts
@@ -294,6 +316,14 @@ tries to steer the model.
   boundary (`[UNTRUSTED CONTENT boundary-<nonce>] … [END …]`); nonce
   occurrences inside the content are stripped first, so a fake closing marker
   cannot escape the wrapper.
+- **These defenses key off `untrustedContentHint`.** Wrapping and tainting
+  only trigger for tools annotated `untrustedContentHint: true`
+  (`untrustedContent: true` in webmcp-tools) — an unannotated tool that
+  returns reviews, comments, or any third-party content is treated as trusted
+  by default. If your page has tools like that, set
+  `untrustedByDefault: true` on `createAgent`: every tool that doesn't
+  explicitly declare `untrustedContentHint: false` is then wrapped and taints
+  the conversation.
 - **Taint guard (deterministic backstop, on by default).** Once untrusted
   content enters the conversation, every mutating tool call requires explicit
   approval via `onApproval` — `window.confirm` by default in the DOM,

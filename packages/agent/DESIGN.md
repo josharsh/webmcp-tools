@@ -52,6 +52,7 @@ export interface AgentOptions {
   maxIterations?: number; maxTokens?: number; // defaults: 8 (hard cap per send), 4096 per model call
   allowTools?: string[]; denyTools?: string[]; // filtered at discovery AND execution; deny wins
   taintGuard?: boolean; // default true; forced true for builtin()
+  untrustedByDefault?: boolean; // default false; true = tools without an explicit untrustedContentHint: false are wrapped + taint the turn
   onApproval?: (req: { toolName: string; input: Json; reason: "tainted-context" }) => boolean | Promise<boolean>; // default window.confirm in DOM, auto-DENY headless
   onUsage?: (u: { inputTokens: number; outputTokens: number; cumulative: { inputTokens: number; outputTokens: number } }) => void;
   toolSource?: ToolSource; // default pageToolSource()
@@ -89,6 +90,7 @@ export type AgentEvent =
   | { type: "confirm-pending"; toolCallId: string; toolName: string } | { type: "confirm-resolved"; toolCallId: string }
   | { type: "approval-required"; toolCallId: string; toolName: string; input: Json } | { type: "approval-resolved"; toolCallId: string; approved: boolean }
   | { type: "usage"; inputTokens: number; outputTokens: number }
+  | { type: "tools-changed"; tools: ProviderToolDescriptor[] } // registry/toolchange; read getState().tools
   | { type: "error"; code: "iteration-limit" | "repeated-call" | "provider"; message: string; cause?: unknown }
   | { type: "done"; reason: "end-turn" | "max-iterations" | "aborted" | "error" };
 ```
@@ -111,6 +113,7 @@ export interface ProviderChatRequest { system: string; messages: ChatMessage[];
 export interface ProviderToolDescriptor {
   name: string; inputSchema: JsonSchema; annotations?: ToolAnnotations;
   description: string; // agent appends "[read-only]" or "[mutates page state; may require user confirmation]"
+  title?: string; // display title (spec ModelContextTool.title); ToolCallPart.title = title ?? name
 }
 export type ProviderEvent =
   | { type: "text-delta"; text: string }
@@ -331,20 +334,35 @@ export interface AgentHandlerOptions {
   model: string;    // PINNED; client may omit model (injected); mismatch → 400
   baseURL?: string; // default "https://api.anthropic.com"
   allowedOrigins?: "same-origin" | string[] | "any"; // default "same-origin"; missing/mismatched Origin → 403; "any" must be typed explicitly
-  maxBodyBytes?: number; // default 1_048_576 → 413
+  maxBodyBytes?: number; // default 1_048_576; enforced WHILE reading (chunked bodies bounded too) → 413
   maxTokens?: number;    // server-side clamp of max_tokens, default 4096
   rateLimit?: (req: Request) => boolean | Promise<boolean>; // false → 429; no default impl (README shows in-memory one)
 }
 export function createAgentHandler(opts: AgentHandlerOptions): (request: Request) => Promise<Response>;
+export function nextAppRoute(handler: (request: Request) => Promise<Response>):
+  { POST: (request: Request) => Promise<Response> }; // Next.js App Router: export const { POST } = nextAppRoute(…)
+export function toNodeHandler(handler: (request: Request) => Promise<Response>,
+  options?: { maxBodyBytes?: number }): // default 1_048_576; cap enforced while buffering the raw body → 413 + req.destroy()
+  (req: IncomingMessage, res: ServerResponse) => Promise<void>; // plain Node http / Express adapter
+  // (mount BEFORE express.json(); honors res.write() backpressure — awaits 'drain' on false)
 ```
 
-Behavior: POST + application/json only (405/415); body size check; origin
+Behavior: POST + application/json only (405/415); body read incrementally and
+capped at maxBodyBytes (413 the moment the cap is exceeded — Content-Length is
+checked first when present, but chunked bodies are bounded too); origin
 policy; model pin; max_tokens clamp; forward to `{baseURL}/v1/messages` adding
 `x-api-key` + `anthropic-version`; return upstream Response with body streamed
-through verbatim (no buffering). Pairs with `proxy({url})` — identical wire
-protocol: an authenticating passthrough (~60 lines), not a translator. Docs in
-bold: Origin stops drive-by browser abuse but is NOT authentication; public
-deployments need rateLimit/auth.
+through verbatim (no buffering). CORS: with allowedOrigins set to an array or
+"any", OPTIONS preflights from allowed origins → 204 with
+Access-Control-Allow-Methods: POST, Access-Control-Allow-Headers:
+content-type, anthropic-version (exactly what proxy() sends — never
+x-api-key), Access-Control-Max-Age; every response for a VALIDATED origin
+(SSE and errors included) carries Access-Control-Allow-Origin (the validated
+origin echoed, never a reflection) + Vary: Origin. The same-origin default
+sends no CORS headers and answers OPTIONS with 405. Pairs with `proxy({url})`
+— identical wire protocol: an authenticating passthrough, not a translator.
+Docs in bold: Origin stops drive-by browser abuse but is NOT authentication;
+public deployments need rateLimit/auth.
 
 ## 11. Test plan (colocated; every test encodes a failure mode)
 
