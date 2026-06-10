@@ -27,9 +27,13 @@ example build / attw (no problems, node10 green) / npm pack (README+LICENSE
 in tarball) / prettier check.
 
 COMMITTED: ee6d547 (review fixes), df28daa (adapters/bridge/tests/example),
-ccf29b5 (core). Working tree clean. READY TO PUBLISH — remaining steps are
-Harsh's call: create GitHub repo josharsh/webmcp-tools + push; claim @webmcp-tools
-npm scope; `pnpm -r publish --access public`.
+ccf29b5 (core). Working tree clean. PUBLISHED 2026-06-10:
+- npm: webmcp-tools@0.1.0, @josharsh/webmcp-{react,vue,svelte,bridge}@0.1.0
+  (name webmcp-kit was taken by victorhuangwq's active package — narrower
+  scope than ours: no framework adapters, no MCP bridge, no declarative forms)
+- GitHub: https://github.com/josharsh/webmcp-tools (public, CI green node 20/22)
+- Verified: tarball smoke test (ESM+CJS, full agent path) + live registry
+  install of core+react adapter. peerDeps correctly rewritten to ^0.1.0.
 
 Fixes applied in ee6d547:
 
