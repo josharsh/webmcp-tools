@@ -29,6 +29,9 @@ importers:
 
   examples/todo:
     dependencies:
+      '@josharsh/webmcp-agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@josharsh/webmcp-bridge':
         specifier: workspace:*
         version: link:../../packages/mcp-bridge
@@ -63,6 +66,27 @@ importers:
       vite:
         specifier: ^6.0.5
         version: 6.4.3(@types/node@20.19.42)
+
+  packages/agent:
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.17)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.7(react@19.2.7)
+      webmcp-tools:
+        specifier: workspace:*
+        version: link:../core
 
   packages/core:
     devDependencies:

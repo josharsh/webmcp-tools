@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { z } from "zod";
+import { demo } from "@josharsh/webmcp-agent";
+import { AgentWidget } from "@josharsh/webmcp-agent/react";
 import { useRegisteredTools, useWebMCPTool } from "@josharsh/webmcp-react";
 import {
   errorResult,
@@ -157,6 +159,24 @@ export default function App() {
 
       <AgentToolsPanel />
       <SimulatePanel />
+
+      {/*
+        In-page AI agent (@josharsh/webmcp-agent) operating the same tools
+        through document.modelContext. demo() is scripted (not AI) so the
+        widget works with zero config. For a real model, swap the provider:
+
+          provider={proxy({ url: "/api/agent" })}   // production: key stays
+            // server-side behind createAgentHandler() from
+            // "@josharsh/webmcp-agent/server"
+          provider={anthropic({ apiKey, dangerouslyAllowBrowser: true })}
+            // local prototyping only — the key is visible in devtools
+      */}
+      <AgentWidget
+        provider={demo()}
+        title="Todo assistant"
+        greeting="Hi! I can add, complete, delete, and list todos on this page."
+        suggestions={["List my todos", 'Add a todo "Buy milk"']}
+      />
     </main>
   );
 }

@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@josharsh/webmcp-agent": "workspace:*",
     "@josharsh/webmcp-bridge": "workspace:*",
     "@josharsh/webmcp-react": "workspace:*",
     "react": "^19.0.0",

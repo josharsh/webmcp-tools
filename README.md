@@ -150,6 +150,18 @@ await bridge.connect(
 
 An agent in an extension content script or embedding frame connects with an MCP client over the matching `postMessage` transport and gets `tools/list` + `tools/call` — with the kit's validation and confirm gates still enforced in the page. Tools registered or unregistered later are picked up live via `notifications/tools/list_changed`. Tools with `exposedTo` are only served when the connected peer's origin is in the list; calling an unknown (or hidden) tool is a JSON-RPC `InvalidParams` error, so SDK clients see `callTool` reject.
 
+### Ship an agent with your site
+
+Registering tools is half the loop — [`@josharsh/webmcp-agent`](./packages/agent) closes it with an in-page AI agent that discovers and operates those same tools through `document.modelContext`:
+
+```tsx
+import { AgentWidget } from "@josharsh/webmcp-agent/react";
+
+<AgentWidget />; // demo() provider by default — zero config, clearly labeled
+```
+
+Swap in a real model with `proxy({ url: "/api/agent" })` (key stays server-side behind `createAgentHandler()` from `@josharsh/webmcp-agent/server`) or use the headless `createAgent()` core with your own UI. The agent never imports your app code — every call goes through the same validation and confirm gates native browser agents will hit, so the agent is disposable and the tools remain the standard. See the [package README](./packages/agent/README.md) for providers, theming, and the security model.
+
 ## Packages
 
 | Package                                            | What it is                                                                                    |
@@ -159,6 +171,7 @@ An agent in an extension content script or embedding frame connects with an MCP 
 | [`@josharsh/webmcp-vue`](./packages/vue)           | Vue 3 composables tied to component lifecycle                                                 |
 | [`@josharsh/webmcp-svelte`](./packages/svelte)     | Svelte helpers tied to component lifecycle                                                    |
 | [`@josharsh/webmcp-bridge`](./packages/mcp-bridge) | MCP server bridge over `postMessage` for extension/iframe agents                              |
+| [`@josharsh/webmcp-agent`](./packages/agent)       | In-page AI agent that operates the page's tools: headless core, React widget, server proxy    |
 | [`@josharsh/webmcp-example-todo`](./examples/todo) | Runnable Vite + React demo (private)                                                          |
 
 ## Browser support
