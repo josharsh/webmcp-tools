@@ -1,5 +1,10 @@
 # webmcp-tools
 
+[![npm](https://img.shields.io/npm/v/webmcp-tools)](https://www.npmjs.com/package/webmcp-tools)
+[![CI](https://github.com/josharsh/webmcp-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/josharsh/webmcp-tools/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/webmcp-tools)](./LICENSE)
+[![types](https://img.shields.io/badge/types-included-blue)](https://www.npmjs.com/package/webmcp-tools)
+
 **Typed, validated, ergonomic SDK for [WebMCP](https://github.com/webmachinelearning/webmcp) — expose your site's functionality as tools AI agents can call.**
 
 ```ts
@@ -147,14 +152,14 @@ An agent in an extension content script or embedding frame connects with an MCP 
 
 ## Packages
 
-| Package                                           | What it is                                                                                    |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [`webmcp-tools`](./packages/core)                   | Core: `tool()`, validation, confirm gates, registry, ponyfill, declarative forms, Zod adapter |
-| [`@josharsh/webmcp-react`](./packages/react)           | React hooks: `useWebMCPTool`, `useRegisteredTools`                                            |
-| [`@josharsh/webmcp-vue`](./packages/vue)               | Vue 3 composables tied to component lifecycle                                                 |
-| [`@josharsh/webmcp-svelte`](./packages/svelte)         | Svelte helpers tied to component lifecycle                                                    |
+| Package                                            | What it is                                                                                    |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [`webmcp-tools`](./packages/core)                  | Core: `tool()`, validation, confirm gates, registry, ponyfill, declarative forms, Zod adapter |
+| [`@josharsh/webmcp-react`](./packages/react)       | React hooks: `useWebMCPTool`, `useRegisteredTools`                                            |
+| [`@josharsh/webmcp-vue`](./packages/vue)           | Vue 3 composables tied to component lifecycle                                                 |
+| [`@josharsh/webmcp-svelte`](./packages/svelte)     | Svelte helpers tied to component lifecycle                                                    |
 | [`@josharsh/webmcp-bridge`](./packages/mcp-bridge) | MCP server bridge over `postMessage` for extension/iframe agents                              |
-| [`@josharsh/webmcp-example-todo`](./examples/todo)     | Runnable Vite + React demo (private)                                                          |
+| [`@josharsh/webmcp-example-todo`](./examples/todo) | Runnable Vite + React demo (private)                                                          |
 
 ## Browser support
 
