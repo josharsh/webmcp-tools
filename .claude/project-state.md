@@ -19,6 +19,19 @@ Spec reference clone: /tmp/webmcp-spec (webmachinelearning/webmcp).
   postMessage transports (origin-validated, single-peer binding, exposedTo filtering)
 - `examples/todo` — Vite+React demo
 
+## Status update (2026-06-11): @josharsh/webmcp-agent PUBLISHED
+
+- npm: @josharsh/webmcp-agent@0.1.0 (headless core zero-deps, ./react widget,
+  ./server handler). Built via 5-phase workflow (ideate x4 lenses, design
+  synthesis -> DESIGN.md, implement, verify, adversarial review), then 10
+  review fixes (4 majors: abort race/dangling tool_use, body-cap on chunked
+  uploads, CORS for allowedOrigins, untrustedByDefault injection hardening).
+- 306 tests green across repo. Verified from live registry (core+server load,
+  peerDeps ^0.1.0). Committed + pushed.
+- Providers: anthropic (raw fetch SSE), proxy (same wire, key server-side),
+  builtin (Chrome Prompt API, experimental), demo (deterministic, zero config).
+- examples/todo now embeds <WebMCPAgent /> with demo() provider.
+
 ## Status (2026-06-10)
 
 All review findings (A–H) applied and the full gate is green:
