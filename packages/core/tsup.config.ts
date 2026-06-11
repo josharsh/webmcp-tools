@@ -5,6 +5,7 @@ export default defineConfig({
     index: "src/index.ts",
     zod: "src/zod.ts",
     ponyfill: "src/ponyfill.ts",
+    devtools: "src/devtools.ts",
   },
   format: ["esm", "cjs"],
   dts: true,

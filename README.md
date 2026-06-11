@@ -128,6 +128,24 @@ autoRegisterForms(); // registers every form[toolname], watches DOM + attributes
 
 Field names and types become the input schema (`email` → `{ type: "string", format: "email" }`, required honored, `toolparamdescription` → property descriptions); executing the tool fills the fields (dispatching `input`/`change` so React/Vue controlled inputs notice). Per the explainer, the form is only **submitted automatically when it has `toolautosubmit`** (or `autoSubmit: true` is passed) — otherwise the submit control is focused and the user reviews and submits manually. `toolname`/`tooldescription`/`toolautosubmit` attribute changes re-register the tool live; removing `toolname` unregisters it. `formTool(form, { confirm, autoSubmit, onSubmit })` gives per-form control.
 
+### DevTools panel
+
+Test your tools without any agent. A zero-dependency floating inspector that
+lists registered tools live, generates an input form from each tool's JSON
+Schema (flat schemas get real fields; nested ones get a pre-filled JSON
+editor), and executes through the same validated path an agent uses —
+confirm gates included.
+
+```ts
+if (import.meta.env.DEV) {
+  const { initDevtools } = await import("webmcp-tools/devtools");
+  initDevtools(); // { position: "bottom-left" | "bottom-right" }
+}
+```
+
+The dynamic import inside a dev-only branch keeps it out of production
+bundles entirely.
+
 ### MCP bridge (extension / iframe agents)
 
 Native WebMCP only serves browser-built-in agents. The bridge serves everyone else — it exposes the kit's tool registry as a real MCP server over `postMessage`:

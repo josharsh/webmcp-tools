@@ -118,6 +118,22 @@ tool("inventory-sync", {
 
 The ponyfill validates each entry at registration (must be a serialized, potentially trustworthy origin — https, or http on localhost — else it rejects with a `SecurityError`) and enforces visibility on `getTools({ origin })` / `executeTool(…, { origin })`: non-visible tools are indistinguishable from unregistered ones. The [MCP bridge](https://github.com/josharsh/webmcp-tools/tree/main/packages/mcp-bridge) applies the same filter against the connected peer's origin.
 
+## DevTools panel
+
+Test tools without any agent — a zero-dependency floating inspector
+(`webmcp-tools/devtools`): lists registered tools live, renders a form from
+each tool's JSON Schema (flat schemas get fields, nested ones a pre-filled
+JSON editor), and executes through the same validated path an agent uses.
+
+```ts
+if (import.meta.env.DEV) {
+  const { initDevtools } = await import("webmcp-tools/devtools");
+  initDevtools();
+}
+```
+
+The dev-gated dynamic import keeps it out of production bundles.
+
 ## Security
 
 Tools are an attack surface — an agent is an untrusted caller influenced by page content, user prompts, and potentially injected instructions:

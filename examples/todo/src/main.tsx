@@ -38,6 +38,15 @@ if (ENABLE_MCP_BRIDGE) {
   );
 }
 
+// Dev-only tool inspector: lists registered tools, renders forms from their
+// schemas, and executes through the same path an agent uses. Tree-shaken out
+// of production builds because the import only happens in dev.
+if (import.meta.env.DEV) {
+  void import("webmcp-tools/devtools").then(({ initDevtools }) =>
+    initDevtools({ position: "bottom-left" }),
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />

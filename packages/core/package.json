@@ -1,6 +1,6 @@
 {
   "name": "webmcp-tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Typed, validated, ergonomic SDK for WebMCP (document.modelContext) — expose your site's functionality as tools AI agents can call.",
   "license": "MIT",
   "type": "module",
@@ -38,6 +38,16 @@
         "types": "./dist/ponyfill.d.cts",
         "default": "./dist/ponyfill.cjs"
       }
+    },
+    "./devtools": {
+      "import": {
+        "types": "./dist/devtools.d.ts",
+        "default": "./dist/devtools.js"
+      },
+      "require": {
+        "types": "./dist/devtools.d.cts",
+        "default": "./dist/devtools.cjs"
+      }
     }
   },
   "typesVersions": {
@@ -47,6 +57,9 @@
       ],
       "ponyfill": [
         "./dist/ponyfill.d.ts"
+      ],
+      "devtools": [
+        "./dist/devtools.d.ts"
       ]
     }
   },
