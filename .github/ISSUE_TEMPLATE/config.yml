@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions & ideas
+    url: https://github.com/josharsh/webmcp-tools/discussions
+    about: For anything that isn't a bug or a concrete feature request
+  - name: Security vulnerabilities
+    url: https://github.com/josharsh/webmcp-tools/blob/main/SECURITY.md
+    about: Please report privately — do not open a public issue
