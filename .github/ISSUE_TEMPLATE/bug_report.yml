@@ -1,0 +1,31 @@
+name: Bug report
+description: Something doesn't work as documented
+labels: ["bug"]
+body:
+  - type: input
+    id: package
+    attributes:
+      label: Package & version
+      placeholder: webmcp-tools@0.1.1 / @josharsh/webmcp-agent@0.1.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Chrome 149 (origin trial) / ponyfill / Node 20, React 19, Vite 6
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal code + steps. A failing test or stackblitz is gold.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true
