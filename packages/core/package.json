@@ -1,10 +1,13 @@
 {
   "name": "webmcp-tools",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Typed, validated, ergonomic SDK for WebMCP (document.modelContext) — expose your site's functionality as tools AI agents can call.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/zod.js",
+    "./dist/zod.cjs"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
