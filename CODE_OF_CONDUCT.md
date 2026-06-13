@@ -5,6 +5,6 @@ This project follows the [Contributor Covenant v2.1](https://www.contributor-cov
 In short: be respectful, be constructive, assume good faith. Harassment,
 personal attacks, and trolling are not tolerated.
 
-Report violations to engineering@spotlyte.live. Maintainers may remove,
+Report violations to harsh.joshi.pth@gmail.com. Maintainers may remove,
 edit, or reject contributions and ban contributors for behavior that
 violates this code.

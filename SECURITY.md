@@ -8,7 +8,7 @@ The latest published minor of each package receives security fixes.
 
 **Do not open a public issue for security vulnerabilities.**
 
-Email engineering@spotlyte.live with details (affected package, version,
+Email harsh.joshi.pth@gmail.com with details (affected package, version,
 reproduction). You'll get an acknowledgment within 72 hours and a fix or
 mitigation plan within 14 days for confirmed issues.
 
