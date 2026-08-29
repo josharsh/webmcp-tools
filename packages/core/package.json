@@ -6,7 +6,9 @@
   "type": "module",
   "sideEffects": [
     "./dist/zod.js",
-    "./dist/zod.cjs"
+    "./dist/zod.cjs",
+    "./dist/valibot.js",
+    "./dist/valibot.cjs"
   ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -30,6 +32,16 @@
       "require": {
         "types": "./dist/zod.d.cts",
         "default": "./dist/zod.cjs"
+      }
+    },
+    "./valibot": {
+      "import": {
+        "types": "./dist/valibot.d.ts",
+        "default": "./dist/valibot.js"
+      },
+      "require": {
+        "types": "./dist/valibot.d.cts",
+        "default": "./dist/valibot.cjs"
       }
     },
     "./ponyfill": {
@@ -58,6 +70,9 @@
       "zod": [
         "./dist/zod.d.ts"
       ],
+      "valibot": [
+        "./dist/valibot.d.ts"
+      ],
       "ponyfill": [
         "./dist/ponyfill.d.ts"
       ],
@@ -75,14 +90,24 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@valibot/to-json-schema": "^1.7.1",
+    "valibot": "^1.4.0",
     "zod": "^3.25.0 || ^4.0.0"
   },
   "peerDependenciesMeta": {
+    "@valibot/to-json-schema": {
+      "optional": true
+    },
+    "valibot": {
+      "optional": true
+    },
     "zod": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@valibot/to-json-schema": "^1.7.1",
+    "valibot": "^1.4.2",
     "zod": "^4.0.0"
   },
   "keywords": [

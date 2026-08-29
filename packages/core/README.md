@@ -21,6 +21,7 @@ tool("add-to-cart", {
 That's a fully typed, runtime-validated, human-confirmable WebMCP tool — working today in every browser.
 
 > **Note:** the `webmcp-tools/zod` adapter requires the **Zod v4 API**. It imports from the `zod/v4` subpath, which exists in Zod 3.25+ (where v4 ships alongside v3) and in Zod 4. On Zod 3.25.x, build your schemas with `import { z } from "zod/v4"`; on Zod 4, plain `import { z } from "zod"` is already the v4 API.
+> **Valibot:** import `webmcp-tools/valibot` once to enable Valibot descriptor generation. Install both `valibot` and `@valibot/to-json-schema`.
 
 ## What is WebMCP?
 
@@ -159,6 +160,7 @@ Tools are an attack surface — an agent is an untrusted caller influenced by pa
 | `registerSchemaConverter(vendor, fn)`              | Plug in descriptor generation for other Standard Schema vendors.                                        |
 | `normalizeResult(value)` / `errorResult(msg)`      | MCP `CallToolResult` helpers.                                                                           |
 | `webmcp-tools/zod`                                   | Side-effect import: Zod (v4 API) → JSON Schema descriptor generation.                                   |
+| `webmcp-tools/valibot`                               | Side-effect import: Valibot → JSON Schema descriptor generation.                                        |
 
 ## Framework adapters & bridge
 
