@@ -74,6 +74,7 @@ No schema library? Pass raw JSON Schema as `input` instead — the kit still val
 Tool names must be **1–128 characters from `[A-Za-z0-9_.-]`** (the spec constraint) — `tool()` throws on anything else.
 
 > **Zod note:** the `webmcp-tools/zod` adapter uses the **Zod v4 API** via the `zod/v4` subpath, which exists in Zod 3.25+ and Zod 4 — so the full `^3.25.0 || ^4.0.0` peer range works. On Zod 3.25.x, build schemas with `import { z } from "zod/v4"`.
+> **Valibot note:** import `webmcp-tools/valibot` once to generate descriptors from Valibot schemas. Install both `valibot` and `@valibot/to-json-schema`.
 
 ### React
 
@@ -184,7 +185,7 @@ Swap in a real model with `proxy({ url: "/api/agent" })` (key stays server-side 
 
 | Package                                            | What it is                                                                                    |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [`webmcp-tools`](./packages/core)                  | Core: `tool()`, validation, confirm gates, registry, ponyfill, declarative forms, Zod adapter |
+| [`webmcp-tools`](./packages/core)                  | Core: `tool()`, validation, confirm gates, registry, ponyfill, declarative forms, Zod / Valibot adapters |
 | [`@josharsh/webmcp-react`](./packages/react)       | React hooks: `useWebMCPTool`, `useRegisteredTools`                                            |
 | [`@josharsh/webmcp-vue`](./packages/vue)           | Vue 3 composables tied to component lifecycle                                                 |
 | [`@josharsh/webmcp-svelte`](./packages/svelte)     | Svelte helpers tied to component lifecycle                                                    |
